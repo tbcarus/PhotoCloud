@@ -1,8 +1,14 @@
 # PhotoCloud System As-Is v1
 
-Status: `READY_FOR_REVIEW`
+Status: `FROZEN`
 
-Дата составления: 2026-09-12. Версия: v1. Independent System As-Is Review ещё не выполнялся; freeze record не создан.
+Дата составления и freeze: 2026-09-12. Версия: v1. [Freeze record](19-freeze-record.md) фиксирует принятую baseline и закрытие review.
+
+## Review
+
+- Independent review: `PASS_WITH_MINOR_FIXES` — [historical review summary](../../review/system-as-is-review/00-review-summary.md).
+- `REV-SYS-001…004 CLOSED` — [review closure](19-freeze-record.md#review-closure).
+- BLOCKER 0 / MAJOR 0 / MINOR 4; все четыре MINOR findings закрыты.
 
 ## Inputs
 
@@ -19,10 +25,10 @@ Status: `READY_FOR_REVIEW`
 
 - Server internals → Server As-Is v1.
 - Android internals → Android As-Is v1.
-- Cross-component behaviour → этот System As-Is как traceable synthesis двух frozen inputs, пока со статусом READY_FOR_REVIEW.
+- Cross-component behaviour → этот System As-Is как принятая верхнеуровневая baseline, traceable synthesis двух frozen inputs со статусом FROZEN.
 - Scope: **system-level behaviour only**. Deployment и OS unknown не подменяются предположениями; четыре установленных semantic mismatch не означают противоречия источников.
 
-Использованы только документы двух frozen directories. Production code, tests, конфигурационные файлы приложений, live DB/storage, historical audits/reviews/handoff не читались. Описание конфигурации и тестирования взято из frozen спецификаций. Component specs не изменялись; коммитов нет.
+Для synthesis использованы только документы двух frozen directories; для closure — System пакет, его independent review и необходимые frozen component sources. Production code, tests, конфигурационные файлы приложений, live DB/storage и старые audits/reviews/handoff не читались. Описание конфигурации и тестирования взято из frozen спецификаций. Component specs не изменялись; коммитов нет.
 
 ## Composition
 
@@ -45,10 +51,13 @@ Status: `READY_FOR_REVIEW`
 - [16-system-open-questions.md](16-system-open-questions.md)
 - [17-source-traceability.md](17-source-traceability.md)
 - [18-system-flow-index.md](18-system-flow-index.md)
+- [19-freeze-record.md](19-freeze-record.md)
 
 ## Чтение и registries
 
 Начало: сводка 00 → границы/identity 01–04 → API/auth/media 05–07 → state/recovery/consistency 08–12. Реестры 13–16, traceability 17 и flow index 18 позволяют проверить выводы.
+
+На freeze: 26 SYS-CAP, 12 SYS-FLOW, 4 SYS-MISMATCH, 19 SYS-RISK, 21 SYS-OPEN.
 
 IDs `SYS-CAP-*`, `SYS-FLOW-*`, `SYS-MISMATCH-*`, `SYS-RISK-*`, `SYS-OPEN-*` принадлежат отдельным реестрам. Исходные `INT-AND-*`, `SRV-*`, `AND-*`, risk/open IDs сохранены в ссылках. После review/freeze системные IDs остаются стабильными; удаление пункта не означает повторное использование его ID.
 
@@ -56,4 +65,6 @@ IMPLEMENTED означает механизм в указанном объёме
 
 ## Проверка пакета
 
-Полнота и self-check отражены в [17](17-source-traceability.md). Следующий этап — независимое review этого пакета. Автоматическая заморозка и To-Be items не выполнялись.
+Полнота и ограниченный consistency/closure check отражены в [17](17-source-traceability.md); статус FROZEN и границы freeze — в [19](19-freeze-record.md). To-Be items не создавались, risks не исправлены, OPEN не решены.
+
+Следующий этап: manual product/architecture review → To-Be / SPEC items.

@@ -54,13 +54,13 @@
 
 **Type:** INTEGRATION_DECISION
 
-**Current As-Is:** CAMERA разрешается дважды; first absence bootstrap согласован, second lookup Error даёт default routing по bytes.
+**Current As-Is:** CAMERA разрешается дважды; first absence bootstrap согласован, second lookup Error даёт default routing по bytes. Для non-CAMERA target при новом checksum действует case-insensitive filename conflict precheck с 409, без auto-rename/overwrite; дальнейшая Unicode/case policy продуктово не определена.
 
-**Question:** Какой contract target/первого CAMERA pre-check закрепляется для системы при отсутствии CAMERA или неуспехе повторного lookup?
+**Question:** Какой contract target/первого CAMERA pre-check и filename-conflict semantics при fallback/non-CAMERA path закрепляется для системы при отсутствии CAMERA или неуспехе повторного lookup?
 
 **Why it matters:** Отделяет известный lifecycle и mismatch002 от неназначенного решения о target semantics.
 
-**Sources:** [S17](../../../../PhotoCloudServer/docs/spec/server-as-is/17-open-questions.md): OPEN-SRV-004/011; [A19](../../../../PhotoCloudClient/docs/spec/android-as-is/19-open-questions.md): OPEN-AND-011; INT-AND-002; [A17](../../../../PhotoCloudClient/docs/spec/android-as-is/17-server-client-consistency.md).
+**Sources:** [S17](../../../../PhotoCloudServer/docs/spec/server-as-is/17-open-questions.md): OPEN-SRV-004/011/012; [A19](../../../../PhotoCloudClient/docs/spec/android-as-is/19-open-questions.md): OPEN-AND-011; INT-AND-002; [A17](../../../../PhotoCloudClient/docs/spec/android-as-is/17-server-client-consistency.md).
 
 ## SYS-OPEN-006
 
@@ -90,13 +90,13 @@
 
 **Type:** PRODUCT_DECISION
 
-**Current As-Is:** Access20min/refresh7days; no refresh rotation; logout отзывает refresh, client offline clear не гарантирован, refresh5xx clear известен.
+**Current As-Is:** Access20min/refresh7days; no refresh rotation; logout отзывает refresh, client offline clear не гарантирован, refresh5xx clear известен. Password policy 4..20; active rate limiting отсутствует; ban/password reset не создают немедленного отзыва уже выданного access.
 
-**Question:** Какой смысл завершения logout, истечения session и момента прекращения доступа закреплён пользователю?
+**Question:** Какой смысл завершения logout, истечения session и момента прекращения доступа закреплён пользователю; какая credential/session access policy считается продуктовой границей?
 
 **Why it matters:** Связывает local exit, server revoke и background effects без ответа о будущей реализации.
 
-**Sources:** [S17](../../../../PhotoCloudServer/docs/spec/server-as-is/17-open-questions.md): OPEN-SRV-016; [A19](../../../../PhotoCloudClient/docs/spec/android-as-is/19-open-questions.md): OPEN-AND-015; INT-AND-004; [A17](../../../../PhotoCloudClient/docs/spec/android-as-is/17-server-client-consistency.md).
+**Sources:** [S17](../../../../PhotoCloudServer/docs/spec/server-as-is/17-open-questions.md): OPEN-SRV-016/017; [A19](../../../../PhotoCloudClient/docs/spec/android-as-is/19-open-questions.md): OPEN-AND-015; INT-AND-004; [A17](../../../../PhotoCloudClient/docs/spec/android-as-is/17-server-client-consistency.md).
 
 ## SYS-OPEN-009
 

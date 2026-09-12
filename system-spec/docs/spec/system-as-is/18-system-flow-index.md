@@ -6,11 +6,11 @@
 
 | Field | As-Is |
 | --- | --- |
-| Entry condition | Настроен URL; activated/non-banned user вводит credentials |
+| Entry condition | Настроен URL; пользователь отправляет email/password |
 | Components | User → Android → Server/DB → encrypted storage |
 | Main stages | POST login; Server validation/refresh INSERT; pair nonblank; local save/reconcile |
 | Success end-state | Server refresh row и encrypted access/refresh pair; UI presence не validity proof |
-| Failure/recovery | Login failure показывает error; previous pair сама не clear; повтор login новая refresh row |
+| Failure/recovery | Unknown email, неверный пароль, disabled и banned наблюдаются клиентом как 401 / login failure; login failure показывает error; previous pair сама не clear; повтор login новая refresh row |
 | Source sections | [S05](../../../../PhotoCloudServer/docs/spec/server-as-is/05-api.md); [S06](../../../../PhotoCloudServer/docs/spec/server-as-is/06-auth-security.md); [A06](../../../../PhotoCloudClient/docs/spec/android-as-is/06-network-api.md); [A07](../../../../PhotoCloudClient/docs/spec/android-as-is/07-auth-session.md) |
 | System detail | [06-auth-session-lifecycle.md](06-auth-session-lifecycle.md) |
 

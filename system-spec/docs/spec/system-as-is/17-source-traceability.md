@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | server/docs/spec/server-as-is/ | [PhotoCloudServer/docs/spec/server-as-is/README.md](../../../../PhotoCloudServer/docs/spec/server-as-is/README.md) | PhotoCloud Server As-Is v1 — FROZEN; [S20](../../../../PhotoCloudServer/docs/spec/server-as-is/20-freeze-record.md) |
 | android/docs/spec/android-as-is/ | [PhotoCloudClient/docs/spec/android-as-is/README.md](../../../../PhotoCloudClient/docs/spec/android-as-is/README.md) | PhotoCloud Android As-Is v1 — FROZEN; [A22](../../../../PhotoCloudClient/docs/spec/android-as-is/22-freeze-record.md) |
-| system-spec/docs/spec/system-as-is/ | [System README](README.md) | PhotoCloud System As-Is v1 — READY_FOR_REVIEW |
+| system-spec/docs/spec/system-as-is/ | [System README](README.md) | PhotoCloud System As-Is v1 — FROZEN |
 
 Snn означает файл nn в фактическом Server input; Ann — файл nn в Android input. Ссылки ведут прямо в два authoritative directories. Историческая embedded ссылка Android на sibling server-as-is не выбирается как третий input. Сведения об audit/review происхождении в frozen README/freeze используются только для статуса входов; исторические пакеты, verification logs и production evidence paths не использованы как самостоятельные источники.
 
@@ -48,7 +48,7 @@ Server-only assertions относятся к Server authority; Android-only — 
 | SYS-CAP | 26, 001…026 | Новые system capabilities; statuses не скопированы механически из SRV/AND |
 | SYS-FLOW | 12, 001…012 | System entry→result/recovery, без нового runtime layer |
 | SYS-MISMATCH | 4, 001…004 | One-to-one Android INT-AND-001…004 + relevant Server authority |
-| SYS-RISK | 18, 001…018 | Возможные system последствия, не полный перенос component risks |
+| SYS-RISK | 19, 001…019 | Возможные system последствия, включая credential/account control boundary; не полный перенос component risks |
 | SYS-OPEN | 21, 001…021 | Консолидированные решения/runtime unknown, исходные OPEN IDs сохранены |
 
 Дополнительные cross-component mismatches: 0. Противоречия frozen specifications: 0 обнаруженных при сопоставлении. Нормальный CAMERA bootstrap, existing без ID и Server-only unused capabilities отдельно не объявлены defects.
@@ -76,9 +76,9 @@ Server-only assertions относятся к Server authority; Android-only — 
 
 ## Authority, scope и abstraction self-check
 
-- Созданы README и все 19 документов 00…18; Status READY_FOR_REVIEW. System freeze record и To-Be SPEC-* items отсутствуют.
+- Состав на freeze: README и 20 документов 00…19; Status FROZEN. [19-freeze-record.md](19-freeze-record.md) фиксирует закрытие четырёх MINOR findings; To-Be SPEC-* items не создавались.
 - Изменения ограничены выходным `system-spec/docs/spec/system-as-is/**`; component specifications не изменены. Проверка SHA-256 всех 46 входных Markdown-файлов до/после составления не выявила изменений.
-- Production Java/Kotlin, tests, manifest/Gradle/configuration/SQL и live server filesystem не читались. Исторические audits/reviews/handoff не открывались; build/tests/live HTTP не запускались.
+- Production Java/Kotlin, tests, manifest/Gradle/configuration/SQL и live server filesystem не читались. Для closure использован только [independent System review](../../review/system-as-is-review/00-review-summary.md); старые audits/reviews/handoff не открывались; build/tests/live HTTP не запускались.
 - Чтение frozen разделов configuration/testing/security описывает их утверждения; это не чтение соответствующих production/config/test файлов.
 - Новых Git repositories/коммитов не создано. Source repositories и существующие документы вне output не редактировались.
 - В описании сохранены только system boundaries, wire details, lifecycle/recovery и значимые последствия. Class/DAO/controller catalogs и SQL internals не перенесены.
@@ -127,4 +127,17 @@ SHA-256 прочитанных authoritative документов и стату�
 | [Android/22-freeze-record.md](../../../../PhotoCloudClient/docs/spec/android-as-is/22-freeze-record.md) | `45bcf4b7c55a72503496d6aa44731c5bd7d88a9fe8c1689b36337b33fab01018` |
 | [Android/README.md](../../../../PhotoCloudClient/docs/spec/android-as-is/README.md) | `6b67052b2f75bdbc632a71ceb94744e89718f9e786311867bd3445a82d97004e` |
 
-Пакет предназначен для Independent System As-Is Review. READY_FOR_REVIEW означает завершённую первичную интеграционную спецификацию, а не freeze либо принятие risks/OPEN.
+## Limited consistency / review closure check — 2026-09-12
+
+Basis: [independent review](../../review/system-as-is-review/00-review-summary.md), verdict `PASS_WITH_MINOR_FIXES`, BLOCKER 0 / MAJOR 0 / MINOR 4; [findings](../../review/system-as-is-review/01-findings.md). Выполнено только закрытие REV-SYS-001…004, без нового review, reconciliation или поиска новых findings.
+
+| Finding | Closure | Limited consistency check |
+| --- | --- | --- |
+| REV-SYS-001 | CLOSED: SYS-RISK-019, HIGH; RISK-SRV-002/005, S06, A07, AND-AUTH-002 | 05 ↔ 06 ↔ 15 ↔ 16: credential/account consequence согласован с фактическим auth path, без утверждения о произошедшем инциденте |
+| REV-SYS-002 | CLOSED: OPEN-SRV-012 → SYS-OPEN-005; OPEN-SRV-017 → SYS-OPEN-008 | 05 ↔ 09 ↔ 16: filename conflict ограничен non-CAMERA path; 05 ↔ 06 ↔ 15 ↔ 16: credential/session boundary остаётся вопросом, без решения |
+| REV-SYS-003 | CLOSED: Sources всех 19 risks проверены по поддерживающим component sources; SYS-CAP-012 сохраняет SRV-API-004 | 13 ↔ 15 ↔ frozen registries: RISK-SRV-010 добавлен в risk004; RISK-SRV-012 — в risk005/008 с указанием поддерживаемой части consequence; RISK-SRV-036 — в risk008; общие S16 и Android boilerplate сокращены до релевантных sources |
+| REV-SYS-004 | CLOSED: SYS-FLOW-001 начинается с отправки email/password; failure semantics сохранена | 05 ↔ 06 ↔ 18: unknown email, неверный пароль, disabled/banned дают 401 / login failure; остальные 11 flows без изменений |
+
+Registry check README ↔ 13 ↔ 14 ↔ 15 ↔ 16 ↔ 17 ↔ 18 ↔ 19: 26 CAP, 12 FLOW, 4 MISMATCH, 19 RISK, 21 OPEN; IDs непрерывны в объявленных диапазонах. Component source IDs валидны. Все 34 input fingerprints повторно проверены по SHA-256 и сохранены без изменения; System hashes в таблицу не добавлялись. Четыре SYS-MISMATCH и SYS-OPEN-019 не изменены; OPEN не решены, To-Be/change items не добавлены. Component specs и historical review сохранены без изменения.
+
+Итог: **PhotoCloud System As-Is v1 — FROZEN**. Значение freeze и следующий этап зафиксированы в [19-freeze-record.md](19-freeze-record.md).
