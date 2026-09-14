@@ -2,7 +2,7 @@
 
 ## 1. Сведения о текущем входе
 
-**Status:** AS-IS  
+**Status:** DEFERRED  
 **Availability:** ANDROID_ONLY  
 **System:** [PROFILE-AUTH](../system/03-profile-and-settings.md#profile-auth)
 
@@ -10,7 +10,7 @@
 
 ## 2. Просмотр профиля
 
-**Status:** AS-IS  
+**Status:** DEFERRED  
 **Availability:** SERVER_ONLY  
 **System:** [PROFILE-VIEW](../system/03-profile-and-settings.md#profile-view)
 
@@ -18,7 +18,7 @@ Server умеет вернуть сведения профиля текущег�
 
 ## 3. Изменение профиля
 
-**Status:** AS-IS  
+**Status:** DEFERRED 
 **Availability:** STUB  
 **System:** [PROFILE-EDIT](../system/03-profile-and-settings.md#profile-edit)
 
@@ -26,7 +26,7 @@ Server умеет вернуть сведения профиля текущег�
 
 ## 4. Пользовательские настройки
 
-**Status:** AS-IS  
+**Status:** DEFERRED 
 **Availability:** STUB  
 **System:** [SETTINGS-USER](../system/03-profile-and-settings.md#settings-user)
 
@@ -34,7 +34,7 @@ Server умеет вернуть сведения профиля текущег�
 
 ## 5. Выбор Server и проверка соединения
 
-**Status:** AS-IS  
+**Status:** DEFERRED  
 **Availability:** END_TO_END  
 **System:** [SETTINGS-NETWORK](../system/03-profile-and-settings.md#settings-network) · [SYSTEM-SCOPE](../system/07-system-rules-and-recovery.md#system-scope)
 
@@ -44,7 +44,7 @@ Server умеет вернуть сведения профиля текущег�
 
 ## 6. Смена email, avatar и удаление аккаунта
 
-**Status:** AS-IS  
+**Status:** DEFERRED  
 **Availability:** NOT_PRESENT  
 **System:** [PROFILE-ABSENT](../system/03-profile-and-settings.md#profile-absent)
 
