@@ -129,12 +129,10 @@ CHECK означает проверку сценария целиком. Сам 
 
 Изменение не обязано затрагивать оба компонента. Перед существенным изменением проводится architecture/impact review: identity, модель данных, API, persistence, обратная совместимость и зависимые сценарии. Сейчас такое проектирование не выполнялось.
 
-Frozen packages не переписываются: обновления component specs выполняются по процессу соответствующего компонента. Реализация следует authoritative компонентным моделям; расхождение с System Model сначала явно фиксируется, а не обходится скрытым добавлением поля.
+Рабочие component specs `server/` и `android/` обновляются вместе с принятыми изменениями технического поведения и реализации. Исторический System As-Is сохраняется без изменений. Реализация следует authoritative компонентным моделям; расхождение с System Model сначала явно фиксируется, а не обходится скрытым добавлением поля.
 
 ## Authority и служебная навигация
 
-Server As-Is определяет технические факты Server, Android As-Is — Android, frozen System As-Is — межкомпонентное поведение. Рабочая system/ задаёт читаемую форму поведения и канонической системной модели. Противоречия authoritative sources нельзя разрешать самостоятельно или скрывать редактурой.
+[PhotoCloud Server Specification](../../../../PhotoCloudServer/docs/spec/server/README.md) определяет технические факты Server, [PhotoCloud Android Specification](../../../../PhotoCloudClient/docs/spec/android/README.md) — Android, frozen System As-Is — историческое межкомпонентное поведение. Рабочая system/ задаёт читаемую форму поведения и канонической системной модели. Противоречия authoritative sources нельзя разрешать самостоятельно или скрывать редактурой.
 
-[system-reference-map.md](../../reference/system-reference-map.md) — отдельный индекс переходов от сценариев и модели к component specifications и frozen evidence. Он не является источником истины или частью читаемой System SPEC; обычная ручная работа не требует его открытия.
-
-Прежняя [migration map](../../reference/system-behavior-migration-map.md) сохраняется как историческое свидетельство переноса. Её старые ID не переписываются; актуальные соответствия находятся в reference index. Frozen packages в этом задании не менялись.
+История удалённых reference и migration maps доступна в Git. Текущие технические specifications компонентов доступны по ссылкам выше; отдельные неизменяемые копии Server и Android не поддерживаются.
