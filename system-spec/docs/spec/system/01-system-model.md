@@ -71,11 +71,11 @@ User владеет Folder, RemoteFile, StoredObject и EmailRequest. RefreshSes
 | `type` | EmailRequestType | Назначение кода |
 | `used` | Boolean | Отметка использования; исходно false |
 | `user` | User | Аккаунт, к которому относится код |
-| `createdAt` | DateTime | Время создания, от которого отсчитываются 3 дня действия |
+| `createdAt` | DateTime | Время создания, от которого отсчитывается срок действия кода |
 
 ### Связи и срок
 
-EmailRequest относится к одному User; у пользователя может быть несколько кодов. Отдельного поля expiresAt нет. Проверка срока сравнивает createdAt + 3 дня с текущим временем; назначение и used проверяются отдельно. Использование кодов описано в [AUTH-ACT](02-account-and-auth.md#auth-act) и [AUTH-RESET](02-account-and-auth.md#auth-reset).
+EmailRequest относится к одному User; у пользователя может быть несколько кодов. Отдельного поля expiresAt нет. Срок действия в днях задаётся конфигурацией Server отдельно для ACTIVATE и PASSWORD_RESET; по умолчанию оба равны 3 дням, изменение одного не влияет на другой. Значение меньше 1 дня — ошибка конфигурации: Server не запускается. Код действителен, пока createdAt + срок его типа позже текущего времени; назначение и used проверяются отдельно. Использование кодов описано в [AUTH-ACT](02-account-and-auth.md#auth-act) и [AUTH-RESET](02-account-and-auth.md#auth-reset).
 
 <a id="email-request-type"></a>
 
