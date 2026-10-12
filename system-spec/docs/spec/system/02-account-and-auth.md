@@ -8,7 +8,7 @@
 
 ## AUTH-REG — Регистрация пользователя
 
-**Status:** TO-BE
+**Status:** IMPLEMENTING
 
 **Availability:** END_TO_END
 
