@@ -313,7 +313,7 @@ CAMERA и FILES — системные конечные папки. ROOT/CAMERA/
 | `storedObject` | StoredObject | Сведения о физическом объекте |
 | `checksum` | Checksum | Сохранённая копия StoredObject.checksum |
 | `originalName` | String | Логическое имя; API возвращает его как originalFilename |
-| `capturedAt` | DateTime | EXIF-время съёмки либо uploadedAt |
+| `capturedAt` | DateTime | Локальные календарные дата и время съёмки из EXIF DateTimeOriginal, иначе DateTimeDigitized, без пересчёта часовых поясов; без пригодной EXIF-даты — uploadedAt ([BACKUP-METADATA](04-backup-and-sync.md#backup-metadata)) |
 | `uploadedAt` | DateTime | Время создания удалённой записи; при copy новое |
 | `deletedAt` | DateTime? | Поле существует, но текущий API его не заполняет и удаляет запись физически |
 | `metadata` | FileMetadata? | Доступные сведения об изображении |
