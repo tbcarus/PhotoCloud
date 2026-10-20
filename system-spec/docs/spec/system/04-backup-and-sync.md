@@ -197,7 +197,7 @@ Existing не проверяет физические байты и не рез�
 
 ## BACKUP-UPLOAD — Отправка ожидающего изображения
 
-**Status:** AS-IS
+**Status:** IMPLEMENTING
 
 **Availability:** END_TO_END
 
@@ -213,7 +213,7 @@ Existing не проверяет физические байты и не рез�
 2. Для файла проверяет MIME с префиксом image/ и возможность открыть/закрыть URI. Затем отмечает UPLOADING и заново читает URI для multipart upload.
 3. Server принимает поток, вычисляет фактические SHA-256 и размер, определяет MIME и тип по байтам. Пустой файл отвергается; допустимо до 104857600 байтов включительно (100 MiB).
 4. Server пытается извлечь метаданные изображения и определяет папку; отсутствие метаданных не отменяет upload. Если user/folder/checksum уже существует, выполняет [BACKUP-DUPLICATE](04-backup-and-sync.md#backup-duplicate).
-5. Для нового checksum вне CAMERA проверяет занятость имени без учёта регистра. В CAMERA одинаковые имена разрешены. При отсутствии конфликта сохраняет итоговые байты, затем в одной транзакции RemoteFile, StoredObject и доступную FileMetadata.
+5. Для нового checksum вне CAMERA проверяет занятость имени без учёта регистра. В CAMERA одинаковые имена разрешены. При отсутствии конфликта сохраняет итоговые байты в каталоге [StoredObject.filePath](01-system-model.md#stored-object): для CAMERA — `{userId}/camera/{YYYY}` по году capturedAt ([BACKUP-METADATA](04-backup-and-sync.md#backup-metadata)), для остальных папок — временный `{userId}/files`. Затем в одной транзакции сохраняет RemoteFile, StoredObject и доступную FileMetadata.
 6. После commit возвращает 200 с [FileItemDto](01-system-model.md#api-projections), включая ID файла, папку, нормализованное имя, checksum и доступные метаданные.
 7. Android принимает любой 2xx с id>0, сохраняет этот serverFileId, ставит SYNCED и обнуляет retryCount, очищает failureReason и lastFailureAt. Остальные поля ответа не сверяет и не переносит в локальные сведения.
 
