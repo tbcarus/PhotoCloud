@@ -349,7 +349,7 @@ User → Folder → RemoteFile → StoredObject → PhysicalBytes. У RemoteFile
 
 ### Связи
 
-StoredObject принадлежит User, на него могут ссылаться несколько RemoteFile. Обычные upload/copy создают отдельный объект и независимые bytes; copy допускается только для StoredObject текущего пользователя ([FILES-COPY](05-file-library.md#files-copy)). Checksum, сочетание пути и имени не являются гарантированными уникальными ключами этой записи. Прикладного обновления физических полей, refcount или сборки неиспользуемых объектов нет. Ветки owner/non-owner удаления описаны в [FILES-DELETE](05-file-library.md#files-delete).
+StoredObject принадлежит User, на него могут ссылаться несколько RemoteFile. Обычные upload/copy создают отдельный объект и независимые bytes; copy допускается только для StoredObject текущего пользователя ([FILES-COPY](05-file-library.md#files-copy)). Checksum не является уникальным ключом этой записи. Сочетание пути и имени уникально на файловой системе за счёт исключающей публикации байтов при upload/copy: занятый путь не перезаписывается ([SYSTEM-STORAGE](07-system-rules-and-recovery.md#system-storage)); ограничения уникальности в БД нет. Прикладного обновления физических полей, refcount или сборки неиспользуемых объектов нет. Ветки owner/non-owner удаления описаны в [FILES-DELETE](05-file-library.md#files-delete).
 
 <a id="physical-bytes"></a>
 

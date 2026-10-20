@@ -213,7 +213,7 @@ Existing не проверяет физические байты и не рез�
 2. Для файла проверяет MIME с префиксом image/ и возможность открыть/закрыть URI. Затем отмечает UPLOADING и заново читает URI для multipart upload.
 3. Server принимает поток, вычисляет фактические SHA-256 и размер, определяет MIME и тип по байтам. Пустой файл отвергается; допустимо до 104857600 байтов включительно (100 MiB).
 4. Server пытается извлечь метаданные изображения и определяет папку; отсутствие метаданных не отменяет upload. Если user/folder/checksum уже существует, выполняет [BACKUP-DUPLICATE](04-backup-and-sync.md#backup-duplicate).
-5. Для нового checksum вне CAMERA проверяет занятость имени без учёта регистра. В CAMERA одинаковые имена разрешены. При отсутствии конфликта сохраняет итоговые байты в каталоге [StoredObject.filePath](01-system-model.md#stored-object): для CAMERA — `{userId}/camera/{YYYY}` по году capturedAt ([BACKUP-METADATA](04-backup-and-sync.md#backup-metadata)), для остальных папок — временный `{userId}/files`. Затем в одной транзакции сохраняет RemoteFile, StoredObject и доступную FileMetadata.
+5. Для нового checksum вне CAMERA проверяет занятость имени без учёта регистра. В CAMERA одинаковые имена разрешены. При отсутствии конфликта публикует итоговые байты без перезаписи существующего файла ([SYSTEM-STORAGE](07-system-rules-and-recovery.md#system-storage)) в каталоге [StoredObject.filePath](01-system-model.md#stored-object): для CAMERA — `{userId}/camera/{YYYY}` по году capturedAt ([BACKUP-METADATA](04-backup-and-sync.md#backup-metadata)), для остальных папок — временный `{userId}/files`. Затем в одной транзакции сохраняет RemoteFile, StoredObject и доступную FileMetadata.
 6. После commit возвращает 200 с [FileItemDto](01-system-model.md#api-projections), включая ID файла, папку, нормализованное имя, checksum и доступные метаданные.
 7. Android принимает любой 2xx с id>0, сохраняет этот serverFileId, ставит SYNCED и обнуляет retryCount, очищает failureReason и lastFailureAt. Остальные поля ответа не сверяет и не переносит в локальные сведения.
 
@@ -229,7 +229,7 @@ Existing не проверяет физические байты и не рез�
 
 ### Ошибки и recovery
 
-При потере ответа Server уже мог завершить сохранение; это не доказывает откат. Повтор передаёт весь поток и может получить duplicate. Прерывание и локальное подтверждение — [BACKUP-RESTART](04-backup-and-sync.md#backup-restart); расхождение БД и байтов — [SYSTEM-STORAGE](07-system-rules-and-recovery.md#system-storage). 400/409/413 автоматически не повторяются; ручного повтора нет.
+При потере ответа Server уже мог завершить сохранение; это не доказывает откат. Повтор передаёт весь поток и может получить duplicate. Занятый физический путь или другая ошибка физической записи даёт 500 INTERNAL_ERROR без изменения существующих файлов; для Android это временная ошибка, повтор получает новое физическое имя. Прерывание и локальное подтверждение — [BACKUP-RESTART](04-backup-and-sync.md#backup-restart); расхождение БД и байтов — [SYSTEM-STORAGE](07-system-rules-and-recovery.md#system-storage). 400/409/413 автоматически не повторяются; ручного повтора нет.
 
 ### Текущие ограничения
 
@@ -243,7 +243,7 @@ Existing не проверяет физические байты и не рез�
 
 ## BACKUP-DUPLICATE — Duplicate и потерянное подтверждение
 
-**Status:** AS-IS
+**Status:** IMPLEMENTING
 
 **Availability:** END_TO_END
 
@@ -263,7 +263,7 @@ Server получает upload с уже существующим сочетан
 
 ### Развилки и условия
 
-Тот же checksum в другой папке или у другого пользователя не является этим duplicate: обычный upload создаёт отдельные RemoteFile, StoredObject и байты. При checksum-конфликте конкурентного upload Server после очистки пытается перечитать запись и вернуть её; если не находит — пробрасывает ошибку.
+Тот же checksum в другой папке или у другого пользователя не является этим duplicate: обычный upload создаёт отдельные RemoteFile, StoredObject и байты. При checksum-конфликте конкурентного upload транзакция проигравшего запроса откатывается, Server удаляет только собственные опубликованные байты, затем пытается перечитать запись и вернуть её; если не находит — пробрасывает ошибку. Байты успешного запроса не затрагиваются.
 
 ### Ошибки и recovery
 
