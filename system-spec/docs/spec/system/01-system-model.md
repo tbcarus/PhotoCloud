@@ -497,15 +497,15 @@ FileMetadata относится к одному RemoteFile, копируется
 
 Системное представление существующей настройки соединения Android; не UserSettings Server.
 
-**Компонентное представление:** сохранённые IP/port и отдельный BaseUrlProvider в памяти процесса.
+**Компонентное представление:** сохранённые IP/port (единственный источник настройки) и BaseUrlProvider в памяти процесса, который формирует из них адрес по единому правилу.
 
 | Поле | Системный тип | Значение |
 | --- | --- | --- |
 | `ip` | String? | Сохранённый IPv4, без значения по умолчанию |
 | `port` | String? | Сохранённая строка порта, без значения по умолчанию |
-| `baseUrl` | String | Текущий адрес HTTP в памяти; исходно пустой |
+| `baseUrl` | String | Текущий адрес HTTP в памяти; исходно пустой. Восстанавливается из ip/port при создании Network UI и перед каждым фоновым прогоном; пуст при отсутствии или некорректности настройки |
 
-TokenPair и LocalMedia не привязаны к этой настройке. Восстановление URL требует Network UI; lifecycle — [SETTINGS-NETWORK](03-profile-and-settings.md#settings-network) и [BACKUP-RESTART](04-backup-and-sync.md#backup-restart).
+TokenPair и LocalMedia не привязаны к этой настройке. Lifecycle — [SETTINGS-NETWORK](03-profile-and-settings.md#settings-network) и [BACKUP-RESTART](04-backup-and-sync.md#backup-restart).
 
 <a id="sync-results"></a>
 
