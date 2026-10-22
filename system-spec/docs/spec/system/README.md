@@ -17,7 +17,7 @@ Status: AS-IS BASELINE / READY_FOR_MANUAL_REVIEW
 | [06-sharing-and-access.md](06-sharing-and-access.md) | Владение данными и отсутствие sharing | 2 |
 | [07-system-rules-and-recovery.md](07-system-rules-and-recovery.md) | Общие границы, согласованность и диагностика | 3 |
 
-Всего 51 сценарий. AUTH-REG, AUTH-ACT, AUTH-REFRESH, AUTH-LOGOUT, SETTINGS-NETWORK, BACKUP-UPLOAD, BACKUP-DUPLICATE, BACKUP-METADATA, BACKUP-BACKGROUND, BACKUP-RESTART, FILES-COPY, SYSTEM-STORAGE и SYSTEM-DIAGNOSTICS имеют Status IMPLEMENTING, остальные — AS-IS; существующие Availability сохранены. Нерешённые вопросы находятся рядом со сценариями и сами по себе не меняют их статус.
+Всего 51 сценарий. AUTH-REG, AUTH-ACT, AUTH-LOGIN, AUTH-REFRESH, AUTH-LOGOUT, AUTH-BLOCK, SETTINGS-NETWORK, BACKUP-UPLOAD, BACKUP-DUPLICATE, BACKUP-METADATA, BACKUP-BACKGROUND, BACKUP-RESTART, FILES-COPY, SYSTEM-STORAGE и SYSTEM-DIAGNOSTICS имеют Status IMPLEMENTING, остальные — AS-IS; существующие Availability сохранены. Нерешённые вопросы находятся рядом со сценариями и сами по себе не меняют их статус.
 
 ## System Model rule
 

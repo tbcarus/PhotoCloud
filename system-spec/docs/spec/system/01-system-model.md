@@ -100,11 +100,11 @@ EmailRequest относится к одному User; у пользовател�
 | `userName` | String | Email пользователя; связь с аккаунтом по имени |
 | `expires` | DateTime | Копия exp JWT в серверном локальном времени; проверка срока использует подписанный exp |
 | `revoked` | Boolean | Отметка отзыва; исходно false |
-| `revokedAt` | DateTime? | Время одиночного logout; массовый отзыв это поле не заполняет |
+| `revokedAt` | DateTime? | Время одиночного logout или замены при refresh; массовый отзыв это поле не заполняет |
 
 ### Связи
 
-Login создаёт новую RefreshSession для User. Android сохраняет её token вместе с access. Refresh не меняет запись, не ротирует и не продлевает refresh; истечение срока само не удаляет запись. Уникальность сохранённого token не установлена. Операции — [AUTH-LOGIN](02-account-and-auth.md#auth-login), [AUTH-REFRESH](02-account-and-auth.md#auth-refresh), [AUTH-LOGOUT](02-account-and-auth.md#auth-logout).
+Login создаёт новую RefreshSession для User. Android сохраняет её token вместе с access. Refresh, если до exp остаётся больше порога замены, запись не меняет и срок не продлевает. Иначе он в одной транзакции отзывает её (revoked, revokedAt) и создаёт новую RefreshSession того же пользователя с полным сроком; связь между отозванной и новой записью не хранится. Истечение срока само не удаляет запись. Уникальность сохранённого token не установлена. Операции — [AUTH-LOGIN](02-account-and-auth.md#auth-login), [AUTH-REFRESH](02-account-and-auth.md#auth-refresh), [AUTH-LOGOUT](02-account-and-auth.md#auth-logout).
 
 <a id="access-token"></a>
 
@@ -122,18 +122,20 @@ Login создаёт новую RefreshSession для User. Android сохран
 | `roles` | `Set<Role>` | Роли при выдаче; access-проверка использует текущие User.roles |
 | `token_type` | TokenType | ACCESS или REFRESH |
 | `iat` | DateTime | Время выдачи |
-| `exp` | DateTime | Подписанный срок окончания: access — 20 минут, refresh — 7 дней |
+| `exp` | DateTime | Подписанный срок окончания: iat + срок типа из конфигурации Server; по умолчанию access — 1440 минут (24 часа), refresh — 180 дней |
 | `jti` | String | UUID только для refresh; у access такого claim нет |
 
 ### Связи
 
 AccessToken предъявляется от имени User в Bearer-запросе. RefreshTokenValue связан с RefreshSession по полной строке. Уже выданный access не отзывается через logout; остальные условия доступа описаны в account/auth.
 
+Конфигурация Server задаёт срок access в минутах, срок refresh и порог его замены в днях: по умолчанию 1440 минут, 180 и 30 дней. Значения должны быть положительными, а порог — меньше срока refresh, иначе Server не запускается. Сроки вычисляются без переполнения.
+
 <a id="token-type"></a>
 
 ## TokenType
 
-`ACCESS` используется для защищённых операций; `REFRESH` — для получения нового access. Типы не взаимозаменяемы.
+`ACCESS` используется для защищённых операций; `REFRESH` — для получения нового access. Типы не взаимозаменяемы: refresh в Bearer не аутентифицирует запрос, access не принимается как refresh.
 
 <a id="token-pair"></a>
 
@@ -141,7 +143,7 @@ AccessToken предъявляется от имени User в Bearer-запро
 
 Одна локальная пара токенов Android.
 
-**Компонентное представление:** Android — Tokens в зашифрованном хранилище и памяти; Server возвращает пару при login, а при refresh только новый access.
+**Компонентное представление:** Android — Tokens в зашифрованном хранилище и памяти; Server возвращает пару при login, а при refresh новый access и, только при замене refresh, новый refresh.
 
 ### Поля
 
@@ -152,9 +154,11 @@ AccessToken предъявляется от имени User в Bearer-запро
 
 ### Связи
 
-Пара целиком может отсутствовать. Её наличие определяет локальное состояние входа, но не подтверждает валидность токенов. Полей accountId/serverId/host у пары нет; последствия — [SYSTEM-SCOPE](07-system-rules-and-recovery.md#system-scope). Login принимает только две непустые строки; refresh не принимает пустой access.
+Пара целиком может отсутствовать. Её наличие определяет локальное состояние входа, но не подтверждает валидность токенов. Полей accountId/serverId/host у пары нет; последствия — [SYSTEM-SCOPE](07-system-rules-and-recovery.md#system-scope). Login принимает только две непустые строки; refresh не принимает пустой access и, если поле refresh передано, пустую строку refresh. Ответ refresh без поля refresh даёт пару из нового access и прежнего refresh, с полем — новую пару.
 
 Чтение и все изменения пары идут под одной блокировкой хранилища, вместе с ними обновляется наблюдаемое состояние входа. Login сохраняет, а logout очищает пару безусловно. Refresh заменяет или очищает пару атомарно и только если в хранилище всё ещё ровно та пара (access и refresh), с которой он начинался. Поэтому запоздалый refresh не стирает и не перезаписывает новую сессию и не восстанавливает пару после logout. Refresh очищает пару только при окончательном отказе Server ([AUTH-REFRESH](02-account-and-auth.md#auth-refresh)).
+
+Пара с новым refresh записывается синхронно, на рабочем потоке, обе строки одной записью: прежний refresh Server уже отозвал. Если хранилище не подтвердило запись на диск, refresh завершается временной ошибкой; в памяти при этом уже новая пара, и следующая успешная запись сохраняет её. Пара без смены refresh и очистка пишутся асинхронно, как прежде.
 
 <a id="device-media"></a>
 
@@ -450,7 +454,7 @@ FileMetadata относится к одному RemoteFile, копируется
 | FileItemDto | RemoteFile.id/capturedAt/uploadedAt/deletedAt/metadata; `folderId: FolderId` представляет folder; `originalFilename: String` — originalName; `mimeType: String`, `size: Integer`, `checksum: Checksum`, `fileType: FileType` берутся из StoredObject |
 | FileMetadataDto | Поля FileMetadata от width до longitude с теми же nullable типами; id/fileItem не выдаются |
 | FileChecksumDto | `id: FileId`, `originalFilename: String` из RemoteFile и `checksum: Checksum` из StoredObject; folderId отсутствует |
-| LoginResponse / RefreshResponse | При login строки TokenPair; при refresh только `accessToken: String` |
+| LoginResponse / RefreshResponse | При login строки TokenPair; при refresh `accessToken: String` и, только при замене refresh, `refreshToken: String`; без замены поля refreshToken в ответе нет |
 | Auth input | `email: String`, `password: String` — ввод пользователя; password является временным исходным паролем для проверки/хеширования, не полем хранения User |
 | Code confirmation | `code: String` — EmailRequest.code; при reset также новый `password: String` |
 | Folder operations | `parentId: FolderId?` для create; `targetParentId: FolderId` для move; `name: String` изменяет Folder.name |
