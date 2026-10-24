@@ -166,7 +166,7 @@ AccessToken предъявляется от имени User в Bearer-запро
 
 Изображение, видимое Android через MediaStore, и его читаемый поток. Это объект устройства, не запись очереди и не удалённый файл.
 
-**Компонентное представление:** Android читает MediaStore Images; нормализованный снимок MediaStoreImage используется одним scan. Server объект устройства не хранит.
+**Компонентное представление:** Android читает MediaStore Images; нормализованный снимок MediaStoreImage используется одним scan. Снимок полный, если запрос выполнен, прочитаны все его строки и основное хранилище подключено. Server объект устройства не хранит.
 
 ### Данные доступного изображения
 
@@ -218,7 +218,7 @@ DeviceMedia индексируется в LocalMedia по mediaStoreId. ОС, pr
 
 LocalMedia ссылается на DeviceMedia через mediaStoreId/uri. serverFileId может связывать её с RemoteFile, но не сопровождается account/server/folder namespace. Два local ID с одинаковыми bytes остаются разными записями. В LocalMedia нет folderId, server/account identity, remote filename/MIME/size/capturedAt/uploadedAt/metadata, upload session или byte progress.
 
-Изменение size/lastModified сбрасывает checksum, serverFileId и сведения об ошибке. Отсутствие ID в успешном scan удаляет запись. Переходы и исключения — [BACKUP-DISCOVER](04-backup-and-sync.md#backup-discover), [BACKUP-CHANGE](04-backup-and-sync.md#backup-change), [BACKUP-RETRY](04-backup-and-sync.md#backup-retry).
+Изменение size/lastModified сбрасывает checksum, serverFileId и сведения об ошибке. Отсутствие ID в полном снимке при полном доступе к изображениям удаляет запись. Переходы и исключения — [BACKUP-DISCOVER](04-backup-and-sync.md#backup-discover), [BACKUP-CHANGE](04-backup-and-sync.md#backup-change), [BACKUP-RETRY](04-backup-and-sync.md#backup-retry).
 
 <a id="sync-state"></a>
 
@@ -230,14 +230,14 @@ LocalMedia ссылается на DeviceMedia через mediaStoreId/uri. serv
 | --- | --- |
 | `PENDING` | Ожидает вычисления checksum |
 | `HASHING` | Сохранённый признак начатого вычисления checksum |
-| `CHECKSUM_READY` | Checksum готова для pre-check |
+| `CHECKSUM_READY` | Checksum готова для pre-check; локальная обработка завершена, запись передана Загрузчику |
 | `PENDING_UPLOAD` | Ожидает отправки |
 | `UPLOADING` | Сохранённый признак начатой отправки |
 | `SYNCED` | Локальный вывод об успехе по критерию ниже |
 | `FAILED` | Ошибка файла; автоматический возврат ограничен CHECKSUM_IO |
 | `LOCAL_DELETED` | Значение существует, но активный путь его не записывает |
 
-HASHING/UPLOADING могут сохраняться без работающей задачи. Из любого состояния возможен сброс при изменении size/lastModified или удаление строки при исчезновении из успешного снимка. Это не глобальная атомарная машина состояний: поздние записи scan/restore/hash/pre-check/upload могут нарушать обычные сочетания status/checksum/ID и сохранять сведения об ошибке при status, отличном от FAILED.
+HASHING/UPLOADING могут сохраняться без работающей задачи. Из любого состояния возможен сброс при изменении size/lastModified или удаление строки при исчезновении из полного снимка. PENDING, HASHING и переход в CHECKSUM_READY или локальный FAILED выполняет Поставщик; переходы из CHECKSUM_READY, PENDING_UPLOAD и UPLOADING — Загрузчик. Результаты hash, pre-check и upload применяются условно: только к строке в ожидаемом состоянии с прежними checksum, size и lastModified. Это не глобальная атомарная машина состояний: безусловные записи scan и restore могут нарушать обычные сочетания status/checksum/ID и сохранять сведения об ошибке при status, отличном от FAILED.
 
 <a id="synced"></a>
 
@@ -509,7 +509,7 @@ FileMetadata относится к одному RemoteFile, копируется
 | --- | --- | --- |
 | `ip` | String? | Сохранённый IPv4, без значения по умолчанию |
 | `port` | String? | Сохранённая строка порта, без значения по умолчанию |
-| `baseUrl` | String | Текущий адрес HTTP в памяти; исходно пустой. Восстанавливается из ip/port при создании Network UI и перед каждым фоновым прогоном; пуст при отсутствии или некорректности настройки |
+| `baseUrl` | String | Текущий адрес HTTP в памяти; исходно пустой. Восстанавливается из ip/port при создании Network UI и перед каждым прогоном Загрузчика; пуст при отсутствии или некорректности настройки |
 
 TokenPair и LocalMedia не привязаны к этой настройке. Lifecycle — [SETTINGS-NETWORK](03-profile-and-settings.md#settings-network) и [BACKUP-RESTART](04-backup-and-sync.md#backup-restart).
 
@@ -517,15 +517,14 @@ TokenPair и LocalMedia не привязаны к этой настройке. 
 
 ## Результаты стадий и прогона
 
-**Компонентное представление:** временные Android ScanResult, ChecksumResult, ChecksumPrecheckResult, UploadResult и SyncResult. Счётчики — Integer, не поля LocalMedia и не постоянная история.
+**Компонентное представление:** временные Android ScanResult, ChecksumResult, ChecksumPrecheckResult и UploadResult. Счётчики — Integer, не поля LocalMedia и не постоянная история.
 
 | Представление | Поля | Значение |
 | --- | --- | --- |
-| ScanResult | `scanned`, `insertedOrUpdated`, `deletedStale` | Прочитанные строки, размер применяемого снимка и удалённые отсутствующие строки; insertedOrUpdated не считает только реальные изменения |
+| ScanResult | `scanned`, `insertedOrUpdated`, `deletedStale` | Прочитанные строки, размер применяемого снимка и удалённые отсутствующие строки (0 для неполного снимка); insertedOrUpdated не считает только реальные изменения |
 | ChecksumResult | `processed`, `succeeded`, `failed` | Обработанные строки и результаты hashing |
 | ChecksumPrecheckResult | `checked`, `existing`, `pendingUpload`, `unchanged` | Результаты pre-check в локальных строках, не уникальных hashes |
 | UploadResult | `attempted`, `succeeded`, `failed`, `leftPending` | Результаты upload; leftPending относится к встреченной временной ошибке, не размеру всей очереди |
-| SyncResult | Nullable результаты четырёх стадий | Данные одного прогона; не общая server sync session |
 
 <a id="sync-status-record"></a>
 
@@ -563,7 +562,7 @@ WorkInfo относится к Android WorkManager, а не LocalMedia. Знач
 | IP/port формы Network | String | Ввод для формирования NetworkState |
 | `isLoading` | Boolean | Выполняемая операция Auth/Network; ошибка создания соединения может оставить индикатор |
 | `isScanning` | Boolean | UI scan на Files |
-| `isSyncing` | Boolean | Только RUNNING one-time photo_sync; periodic не учитывается |
+| `isSyncing` | Boolean | RUNNING разовой задачи Поставщика или Загрузчика; periodic не учитываются |
 | `LastScanResult` | Результат UI scan? | Success с ScanResult, PermissionDenied либо Error; worker его не обновляет |
 | Список и counters Files | `List<LocalMedia>`, Integer | Все локальные строки, Total и число строк семи используемых SyncState |
 | Сообщение операции | String? | Результат явного действия/ошибки для UI |

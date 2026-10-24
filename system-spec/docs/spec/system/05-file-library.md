@@ -10,7 +10,7 @@ Android Files показывает локальную очередь в текс
 
 ## FILES-LOCAL — Просмотр локальной очереди на Files
 
-**Status:** AS-IS
+**Status:** IMPLEMENTING
 
 **Availability:** ANDROID_ONLY
 
@@ -23,7 +23,7 @@ Android Files показывает локальную очередь в текс
 Пользователь открывает Files.
 
 1. Files доступен независимо от входа. При входе с tokens+URL проверяется permission: если он уже есть, пересматривается фон без UI scan; если нет — запускается системный запрос.
-2. После grant Android пересматривает фон и выполняет UI scan; после отказа тоже пытается выполнить scan для карточки PermissionDenied.
+2. На Android 14+ запрос включает READ_MEDIA_IMAGES и READ_MEDIA_VISUAL_USER_SELECTED. После выдачи полного доступа Android пересматривает фон, ставит разовый Поставщик и выполняет UI scan; после отказа или частичного доступа («выбранные фото») тоже пытается выполнить scan для карточки PermissionDenied «Нет доступа ко всем фотографиям», строки при этом не удаляются.
 3. Список показывает все LocalMedia, новые по createdAt первыми: displayName, relativePath, size, status, наличие checksum и краткую failureReason.
 4. Показываются Total, счётчики семи используемых состояний, последний UI scan и последний общий результат sync.
 
@@ -31,11 +31,11 @@ Android Files показывает локальную очередь в текс
 
 ### Ошибки и recovery
 
-Permission/error cards относятся к UI scan. Общая карточка может показывать SUCCESS при FAILED строках или сохранять прежний результат после permission failure worker. LastScanResult не обновляется worker scan; ScanResult.insertedOrUpdated обозначает число строк снимка, а не число реально изменённых записей.
+Permission/error cards относятся к UI scan. UI scan выполняется по очереди со scan Поставщика. Общая карточка может показывать SUCCESS при FAILED строках или сохранять прежний результат после permission failure worker. LastScanResult не обновляется worker scan; ScanResult.insertedOrUpdated обозначает число строк снимка, а не число реально изменённых записей.
 
 ### Текущие ограничения
 
-Нет фото/thumbnail/preview, serverFileId, подробных background errors, retry counters, времени ошибки и устойчивой истории sync. Индикатор isSyncing учитывает только RUNNING разовой задачи, не periodic. При UI scan или такой задаче Files показывает диалог загрузки, который нельзя закрыть обычным действием dismiss; он также перекрывает нижнюю навигацию. Нет кнопок Sync now, Scan, Pre-check, Upload, retry/reset/cancel, byte progress или resume. Последний общий outcome теряется с процессом.
+Нет фото/thumbnail/preview, serverFileId, подробных background errors, retry counters, времени ошибки и устойчивой истории sync. Индикатор isSyncing учитывает RUNNING разовых задач Поставщика и Загрузчика, не periodic. При UI scan или такой задаче Files показывает немодальный индикатор над карточками; список и навигация остаются доступны. Нет кнопок Sync now, Scan, Pre-check, Upload, retry/reset/cancel, byte progress или resume. Последний общий outcome теряется с процессом.
 
 ## Что Server поддерживает, но Android не использует
 
