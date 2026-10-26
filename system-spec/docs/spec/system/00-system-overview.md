@@ -20,7 +20,7 @@ PhotoCloud копирует доступные фотографии Android-ус
 | --- | --- |
 | [Аккаунт и доступ](02-account-and-auth.md) | Регистрация, вход, refresh и выход; активация вне Android; reset API с незавершённой страницей из письма |
 | [Профиль и настройки](03-profile-and-settings.md) | Network и сведения о входе на Auth; Server читает профиль, редактирование и Settings — заглушки |
-| [Backup и синхронизация](04-backup-and-sync.md) | Images/DCIM → checksum → existing/upload → локальный результат; фоновое продолжение с ограничениями |
+| [Backup и синхронизация](04-backup-and-sync.md) | Images (DCIM, временно Pictures) → checksum → existing/upload → локальный результат; фоновое продолжение с ограничениями |
 | [Библиотека файлов](05-file-library.md) | Локальный текстовый монитор Android; Server предоставляет просмотр, скачивание и организацию файлов/папок |
 | [Sharing и доступ](06-sharing-and-access.md) | Проверка владельца; совместный доступ и публичные ссылки отсутствуют |
 | [Общие правила и recovery](07-system-rules-and-recovery.md) | Контекст аккаунта/Server, согласованность каталога и байтов, диагностика |
