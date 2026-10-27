@@ -563,9 +563,8 @@ WorkInfo относится к Android WorkManager, а не LocalMedia. Знач
 | `isLoggedIn` | Boolean | Наличие TokenPair, не результат verifySession |
 | IP/port формы Network | String | Ввод для формирования NetworkState |
 | `isLoading` | Boolean | Выполняемая операция Auth/Network; ошибка создания соединения может оставить индикатор |
-| `isScanning` | Boolean | UI scan на Files |
 | `isSyncing` | Boolean | RUNNING разовой задачи Поставщика или Загрузчика; periodic не учитываются |
-| `LastScanResult` | Результат UI scan? | Success с ScanResult, PermissionDenied либо Error; worker его не обновляет |
+| Разрешения на Files и Settings | Boolean, полный/частичный/нет доступ | Фактическое состояние Android, перечитывается при открытии экрана и возврате в приложение; не сохраняется |
 | Список и counters Files | `List<LocalMedia>`, Integer | Все локальные строки, Total и число строк семи используемых SyncState |
 | Сообщение операции | String? | Результат явного действия/ошибки для UI |
 
