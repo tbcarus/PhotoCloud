@@ -247,7 +247,7 @@ HASHING/UPLOADING могут сохраняться без работающей 
 
 SYNCED — сохранённый вывод Android после logical existing либо upload 2xx с положительным FileId. Existing меняет только status: serverFileId остаётся прежним, в обычном новом пути — null. Upload при обычном завершении записывает ID.
 
-Состояние не гарантирует читаемость и неизменность физических байтов Server, равенство local checksum отправленному содержимому, актуальность remote ID/папки, наличие оригинала сейчас или backup в текущем account/host. Обычный SYNCED повторно с Server не сверяется. Общий SUCCESS не означает, что все строки SYNCED. Нерешённый продуктовый смысл подтверждения остаётся рядом с [BACKUP-NEW](04-backup-and-sync.md#backup-new).
+Состояние не гарантирует читаемость и неизменность физических байтов Server, равенство local checksum отправленному содержимому, актуальность remote ID/папки, наличие оригинала сейчас или backup в текущем account/host. Обычный SYNCED повторно с Server не сверяется. Успешный прогон Worker не означает, что все строки SYNCED. Нерешённый продуктовый смысл подтверждения остаётся рядом с [BACKUP-NEW](04-backup-and-sync.md#backup-new).
 
 <a id="failure-reason"></a>
 
@@ -528,26 +528,49 @@ TokenPair и LocalMedia не привязаны к этой настройке. 
 | ChecksumPrecheckResult | `checked`, `existing`, `pendingUpload`, `unchanged` | Результаты pre-check в локальных строках, не уникальных hashes |
 | UploadResult | `attempted`, `succeeded`, `failed`, `leftPending` | Результаты upload; leftPending относится к встреченной временной ошибке, не размеру всей очереди |
 
-<a id="sync-status-record"></a>
+<a id="sync-run-results"></a>
 
-## SyncStatusRecord
+## SyncRunResults
 
-Последний общий результат Android в памяти процесса.
+Сохранённые итоги последних прогонов Поставщика и Загрузчика; переживают перезапуск процесса.
 
-**Компонентное представление:** Android — SyncStatusRecord в SyncStatusStore; на Server не сохраняется.
+**Компонентное представление:** Android — SyncRunResults в SyncStatusStore, файл DataStore `sync_status`, отдельный от настроек Server; на Server не сохраняется.
 
 | Поле | Системный тип | Значение |
 | --- | --- | --- |
-| `status` | SyncStatus | Общий outcome |
-| `timestamp` | DateTime | Время результата; UI карточка его не показывает |
+| `providerProblem` | SyncProblem? | Ошибка последнего прогона Поставщика (ERROR: scan, hash или исключение) и время её возникновения |
+| `lastScanAt` | DateTime? | Конец последнего прогона Поставщика с успешным scan |
+| `uploaderProblem` | SyncProblem? | Проблема последнего прогона Загрузчика: SERVER_UNAVAILABLE (ping), ERROR (pre-check или исключение), RETRY_SCHEDULED (временная ошибка upload), и время её возникновения |
+| `lastUploadAt` | DateTime? | Конец последнего прогона Загрузчика, в котором Server подтвердил хотя бы один отправленный файл; existing pre-check отправкой не считается |
 
-Весь record исходно отсутствует и теряется с процессом. PermissionDenied worker не заменяет его. Связи с постоянной историей попыток или конкретным RemoteFile нет.
+Каждая часть пишет только свои поля, один раз в конце прогона: успешное завершение снимает проблему этой части, проблему другой не трогает. Повтор той же проблемы сохраняет прежнее время возникновения; DataStore при неизменных данных файл не перезаписывает. Время — часы устройства, с точностью до длительности прогона. Без полного доступа к фото, без пары и без адреса Server итог не записывается: эти условия проверяются в момент отображения. «Выполняется» не сохраняется. Ошибка записи только логируется и на синхронизацию не влияет. Время сбоя внутри стадии upload, о котором прогон не получил счётчиков, отправкой не считается.
+
+<a id="backup-state"></a>
+
+## BackupState
+
+Пользовательское состояние резервного копирования, вычисляемое на Android при каждом изменении источников; не хранится.
+
+**Компонентное представление:** Android — BackupState, функция backupStateOf и BackupStateMonitor; единственный источник состояния backup на Files ([FILES-LOCAL](05-file-library.md#files-local)).
+
+Источники: счётчики LocalMedia (агрегирующий запрос Room: total, synced = SYNCED, preparing = PENDING + HASHING, toUpload = CHECKSUM_READY + PENDING_UPLOAD + UPLOADING, failed = FAILED; LOCAL_DELETED не учитывается, total равен сумме групп), RUNNING разовых и periodic задач Поставщика и Загрузчика в WorkManager, фактический полный доступ к фото, наличие TokenPair, адрес из сохранённых IP/port по правилу [SETTINGS-NETWORK](03-profile-and-settings.md#settings-network) и SyncRunResults. Опросов нет.
+
+| Фаза | Условие (в порядке проверки) |
+| --- | --- |
+| `ATTENTION_REQUIRED` | Нет полного доступа к фото, нет пары или нет корректного адреса |
+| `RUNNING` | Выполняется прогон любой части |
+| `WAITING` | preparing + toUpload > 0 |
+| `ATTENTION_REQUIRED` | Есть ошибка Поставщика или FAILED |
+| `WAITING` | Успешной проверки фото ещё не было (lastScanAt отсутствует) |
+| `SYNCED` | Иначе: проверка состоялась, все обнаруженные фото SYNCED |
+
+Причины (issues) сопровождают любую фазу, по убыванию важности: нет доступа, нет входа, нет адреса, ошибка Поставщика, проверка фото ещё не выполнялась, недоступность Server или временная ошибка Загрузчика, FAILED. «Проверка не выполнялась» показывается при наличии доступа, без ошибки Поставщика и пока он не выполняется: пустой индекс до первого scan не означает, что фото нет. Сохранённая проблема — последний известный итог, а не подтверждённое текущее состояние: ошибка Поставщика показывается, пока он не выполняется и доступ есть; проблема Загрузчика — пока он не выполняется, нет причин первых трёх видов и toUpload > 0. Успешное завершение Worker само по себе не даёт SYNCED. Время возникновения сохранённой проблемы, lastScanAt и lastUploadAt входят в состояние.
 
 <a id="sync-status"></a>
 
 ## SyncStatus и состояние работы
 
-SyncStatus принимает `SUCCESS`, `SERVER_UNAVAILABLE`, `ERROR`, `RETRY_SCHEDULED`. Это результат прогона, независимый от SyncState каждой строки: SUCCESS может сосуществовать с FAILED.
+SyncStatus — проблема прогона части: `SERVER_UNAVAILABLE`, `ERROR`, `RETRY_SCHEDULED`; успешный прогон проблемы не имеет и снимает её ([SyncRunResults](01-system-model.md#sync-run-results)). Это итог прогона, независимый от SyncState каждой строки: прогон без проблемы может сосуществовать с FAILED и с оставшейся очередью.
 
 WorkInfo относится к Android WorkManager, а не LocalMedia. Значимые здесь `RUNNING`, `ENQUEUED`, `BLOCKED` описывают выполнение или ожидание работы. Worker success/retry, состояние work и SyncStatus не взаимозаменяемы. `CONNECTED` означает требование доступной сети, `batteryNotLow` — достаточного заряда; это условия задачи, не поля LocalMedia или пользовательские настройки. Условия фонового запуска находятся в [BACKUP-BACKGROUND](04-backup-and-sync.md#backup-background).
 
@@ -563,12 +586,12 @@ WorkInfo относится к Android WorkManager, а не LocalMedia. Знач
 | `isLoggedIn` | Boolean | Наличие TokenPair, не результат verifySession |
 | IP/port формы Network | String | Ввод для формирования NetworkState |
 | `isLoading` | Boolean | Выполняемая операция Auth/Network; ошибка создания соединения может оставить индикатор |
-| `isSyncing` | Boolean | RUNNING разовой задачи Поставщика или Загрузчика; periodic не учитываются |
 | Разрешения на Files и Settings | Boolean, полный/частичный/нет доступ | Фактическое состояние Android, перечитывается при открытии экрана и возврате в приложение; не сохраняется |
-| Список и counters Files | `List<LocalMedia>`, Integer | Все локальные строки, Total и число строк семи используемых SyncState |
+| Список Files | `List<LocalMedia>` | Все локальные строки |
+| Состояние backup на Files | [BackupState](01-system-model.md#backup-state) | Фаза, причины, счётчики и время; разрешение на фото экран передаёт при открытии и каждом возврате |
 | Сообщение операции | String? | Результат явного действия/ошибки для UI |
 
-Экран Files также показывает SyncStatusRecord. Устойчивой истории ошибок, byte progress и UI управления retry нет. Поведение — [FILES-LOCAL](05-file-library.md#files-local).
+Устойчивой истории ошибок, byte progress и UI управления retry нет. Поведение — [FILES-LOCAL](05-file-library.md#files-local).
 
 <a id="error-response"></a>
 
