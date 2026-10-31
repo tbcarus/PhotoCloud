@@ -17,7 +17,7 @@ Status: AS-IS BASELINE / READY_FOR_MANUAL_REVIEW
 | [06-sharing-and-access.md](06-sharing-and-access.md) | Владение данными и отсутствие sharing | 2 |
 | [07-system-rules-and-recovery.md](07-system-rules-and-recovery.md) | Общие границы, согласованность и диагностика | 3 |
 
-Всего 51 сценарий. AUTH-REG, AUTH-ACT, AUTH-LOGIN, AUTH-REFRESH, AUTH-LOGOUT, AUTH-BLOCK, SETTINGS-NETWORK, BACKUP-NEW, BACKUP-DISCOVER, BACKUP-CHECKSUM, BACKUP-TARGET, BACKUP-EXISTING, BACKUP-UPLOAD, BACKUP-DUPLICATE, BACKUP-METADATA, BACKUP-BACKGROUND, BACKUP-RETRY, BACKUP-RESTART, BACKUP-CHANGE, BACKUP-DELETE, FILES-LOCAL, FILES-COPY, SYSTEM-STORAGE и SYSTEM-DIAGNOSTICS имеют Status IMPLEMENTING, остальные — AS-IS; существующие Availability сохранены. Нерешённые вопросы находятся рядом со сценариями и сами по себе не меняют их статус.
+Всего 51 сценарий. AUTH-REG, AUTH-ACT, AUTH-LOGIN, AUTH-REFRESH, AUTH-LOGOUT, AUTH-BLOCK, SETTINGS-NETWORK, BACKUP-NEW, BACKUP-DISCOVER, BACKUP-CHECKSUM, BACKUP-TARGET, BACKUP-EXISTING, BACKUP-UPLOAD, BACKUP-DUPLICATE, BACKUP-METADATA, BACKUP-BACKGROUND, BACKUP-RETRY, BACKUP-RESTART, BACKUP-CHANGE, BACKUP-DELETE, FILES-LOCAL, SYSTEM-STORAGE и SYSTEM-DIAGNOSTICS имеют Status IMPLEMENTING, остальные — AS-IS; существующие Availability сохранены. Нерешённые вопросы находятся рядом со сценариями и сами по себе не меняют их статус.
 
 ## System Model rule
 
@@ -63,7 +63,7 @@ Availability отвечает только на вопрос о существу
 
 Например, TO-BE + NOT_PRESENT означает утверждённую, ещё отсутствующую функцию; IMPLEMENTING + SERVER_ONLY может описывать уже проверенную серверную часть при отсутствии Android; ACCEPTED + END_TO_END — принятую проверенную реализацию обеих сторон. Это примеры будущей работы, не новые сценарии этого пакета.
 
-Availability относится к сценарию: ROOT/children участвуют в сквозном backup, но пользовательский просмотр дерева остаётся SERVER_ONLY. Activation — внешний SERVER_ONLY шаг onboarding; reset API работает на Server, а страница из письма и resend остаются заглушками внутри этого пути.
+Availability относится к сценарию: получение CAMERA участвует в сквозном backup, но пользовательский просмотр дерева остаётся SERVER_ONLY. Activation — внешний SERVER_ONLY шаг onboarding; reset API работает на Server, а страница из письма и resend остаются заглушками внутри этого пути.
 
 ## Лёгкий формат сценария
 

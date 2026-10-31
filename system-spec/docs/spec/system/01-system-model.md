@@ -19,7 +19,7 @@
 | `List<T>`, `Set<T>`, `Map<K,V>` | Список, множество и отображение значений |
 | `T?` | Значение может отсутствовать; это не отдельное состояние обработки |
 
-В сценариях hash означает checksum, а mtime — LocalMedia.lastModified. Checksum не является ID локального или удалённого файла. Несколько LocalMedia, RemoteFile и StoredObject могут иметь одинаковый checksum. Для операции duplicate существенна тройка владелец + папка + checksum, описанная в [BACKUP-DUPLICATE](04-backup-and-sync.md#backup-duplicate).
+В сценариях hash означает checksum, а mtime — LocalMedia.lastModified. Checksum не является ID локального или удалённого файла. Несколько LocalMedia, RemoteFile и StoredObject могут иметь одинаковый checksum. Тройка владелец + папка + checksum определяет duplicate только в Camera ([BACKUP-DUPLICATE](04-backup-and-sync.md#backup-duplicate)); в обычной библиотеке checksum не определяет уникальность ([имена библиотеки](01-system-model.md#library-names)).
 
 <a id="user"></a>
 
@@ -288,7 +288,7 @@ SYNCED — сохранённый вывод Android после logical existing
 
 ### Связи
 
-Folder принадлежит User, содержит RemoteFile и имеет прямых потомков Folder. Отдельного сохраняемого поля children нет. Обычное дерево создаётся в пределах пользователя; структура хранения сама не гарантирует совпадение владельца parent или отсутствие длинных циклов. Ограничения имён, системных папок и перемещений находятся в [операциях папок](05-file-library.md#folders-browse).
+Folder принадлежит User, содержит RemoteFile и имеет прямых потомков Folder. Отдельного сохраняемого поля children нет. Обычное дерево создаётся в пределах пользователя; структура хранения сама не гарантирует совпадение владельца parent или отсутствие длинных циклов: это обеспечивают операции под блокировкой ([структурные изменения](01-system-model.md#library-names)). Ограничения системных папок и перемещений находятся в [операциях папок](05-file-library.md#folders-browse).
 
 <a id="folder-type"></a>
 
@@ -297,11 +297,33 @@ Folder принадлежит User, содержит RemoteFile и имеет п
 | Значение | Смысл |
 | --- | --- |
 | `ROOT` | Единственная корневая папка пользователя, создаётся лениво с именем root |
-| `CAMERA` | Системная папка Camera для default routing IMAGE/VIDEO |
-| `FILES` | Системная папка Files для default routing остальных типов |
+| `CAMERA` | Системная папка Camera: назначение backup Android и default routing IMAGE/VIDEO |
 | `USER` | Пользовательская папка, создаваемая под ROOT/USER |
 
-CAMERA и FILES — системные конечные папки. ROOT/CAMERA/FILES нельзя переименовать, переместить или удалить через текущий API. Создание системных папок при upload и выбор Android описывает [BACKUP-TARGET](04-backup-and-sync.md#backup-target).
+CAMERA — системная конечная папка. ROOT и CAMERA нельзя переименовать, переместить или удалить через текущий API. Создание CAMERA и получение её ID Android описывает [BACKUP-TARGET](04-backup-and-sync.md#backup-target).
+
+<a id="library-names"></a>
+
+## Camera, обычная библиотека и имена
+
+Обычная библиотека — ROOT и USER-папки. Camera — папка типа CAMERA со своими правилами: одинаковые имена допустимы, duplicate определяется по владельцу, папке и checksum, а физическое имя и путь задаются при создании StoredObject. Перенос между Camera и библиотекой запрещён, копирование возможно только из Camera в библиотеку ([FILES-MOVE](05-file-library.md#files-move), [FILES-COPY](05-file-library.md#files-copy)).
+
+В каталоге обычной библиотеки файлы и папки используют одно пространство имён: имя принадлежит только одному объекту. Сравнение выполняет PostgreSQL через `lower()` по Folder.name и RemoteFile.originalName, поэтому результат зависит от locale БД; в Java отдельного сравнения имён нет. Имя включает расширение, регистр сохраняется как передан. Переименование объекта с изменением только регистра допустимо. В ROOT имя Camera зарезервировано независимо от регистра, даже если системная Camera ещё не создана: такое имя даёт 409.
+
+Правила имени (нарушение → 400, автоматических исправлений нет):
+
+| Правило | Значение |
+| --- | --- |
+| Содержимое | Не пусто и не только из пробелов |
+| Символы | Нет `/ \ : * ? " < > |`, управляющих символов и одиночных суррогатов |
+| Форма | Unicode NFC |
+| Окончание | Не точка и не пробел; `.` и `..` недопустимы, начальная точка допустима |
+| Имена устройств Windows | Часть до первой точки не CON, PRN, AUX, NUL, COM0–COM9, LPT0–LPT9, их варианты с ¹²³, CONIN$, CONOUT$ |
+| Длина | Не более 255 байт UTF-8 |
+
+Правила проверяет Server; на Camera-файлы они не распространяются: их имя очищается прежним способом ([BACKUP-METADATA](04-backup-and-sync.md#backup-metadata)).
+
+Структурные изменения одного пользователя выполняются по очереди: транзакция блокирует строку его ROOT (`SELECT ... FOR NO KEY UPDATE`), проверяет обе таблицы и только затем пишет. В эту очередь входят создание, переименование, перемещение и удаление папок и файлов, upload, copy и получение Camera. Блокировка живёт до конца этой транзакции и не удерживается при приёме потока, вычислении checksum и публикации байтов. Уникальность имён файлов и duplicate Camera обеспечиваются этой очередью, а не ограничением БД: PostgreSQL не может построить частичный индекс по типу родительской папки. Уникальное ограничение БД есть только у имён папок одного родителя.
 
 <a id="remote-file"></a>
 
@@ -330,7 +352,7 @@ CAMERA и FILES — системные конечные папки. ROOT/CAMERA/
 
 User → Folder → RemoteFile → StoredObject → PhysicalBytes. У RemoteFile не более одной FileMetadata. Обычный upload/copy создаёт записи одного владельца, но сама модель допускает несовпадение владельцев связанных записей и несколько ссылок на StoredObject. Из этого не следует sharing.
 
-Отдельных uploaded/status или version chain у RemoteFile нет. Rename меняет originalName, move — folder, copy создаёт новую identity. Детали конфликтов и удаления остаются в [библиотеке файлов](05-file-library.md).
+Отдельных uploaded/status или version chain у RemoteFile нет. Rename меняет originalName, move — folder, copy создаёт новую identity. Правила имён — [Camera, обычная библиотека и имена](01-system-model.md#library-names), детали конфликтов и удаления остаются в [библиотеке файлов](05-file-library.md).
 
 <a id="stored-object"></a>
 
@@ -461,7 +483,7 @@ FileMetadata относится к одному RemoteFile, копируется
 | Code confirmation | `code: String` — EmailRequest.code; при reset также новый `password: String` |
 | Folder operations | `parentId: FolderId?` для create; `targetParentId: FolderId` для move; `name: String` изменяет Folder.name |
 | File operations | `targetFolderId: FolderId` для move, `FolderId?` для copy; `originalName: String` для rename, `String?` для copy — новое RemoteFile.originalName |
-| Upload | `file: Поток байтов` с filename из LocalMedia.displayName и MIME из LocalMedia.mimeType; `folderId: FolderId?` задаёт папку либо default routing |
+| Upload | `file: Поток байтов` с filename из LocalMedia.displayName и MIME из LocalMedia.mimeType; `folderId: FolderId?` задаёт папку либо default routing; Android всегда передаёт ID CAMERA |
 | Test/message response | `message: String` — текст результата операции, без сохраняемой domain entity |
 
 В FileItemDto не раскрываются StoredObject.id/filePath/filename. Android допускает nullable поля FileItemDto и использует для успеха только id > 0; даты остаются строками, metadata — `Map<String, Any?>?`. Это терпимость декодирования ответа, не изменение обязательности Server полей. Ответные свойства не становятся полями LocalMedia.
