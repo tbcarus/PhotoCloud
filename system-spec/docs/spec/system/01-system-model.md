@@ -272,7 +272,7 @@ SYNCED — сохранённый вывод Android после logical existing
 
 Папка Server, независимая от каталогов устройства. Папке обычной библиотеки соответствует физический каталог с тем же именем ([PhysicalBytes](01-system-model.md#physical-bytes)).
 
-**Компонентное представление:** Server — Folder; Android использует FolderDto для поиска ROOT/CAMERA, не сохраняет дерево папок.
+**Компонентное представление:** Server — Folder; Android использует FolderDto для получения CAMERA и просмотра библиотеки, дерево папок не сохраняет.
 
 ### Поля
 
@@ -474,7 +474,7 @@ FileMetadata относится к одному RemoteFile, копируется
 | Представление | Связь с моделью и системный тип |
 | --- | --- |
 | UserDto | User.id/email/displayName/enabled/banned/roles/createdAt/lastUpdate/lastLoginAt с теми же типами; passwordHash не возвращается |
-| FolderDto | Folder.id/name/folderType/createdAt/updatedAt; `parentId: FolderId?` представляет Folder.parent. Android допускает отсутствующие даты и читает ID/type |
+| FolderDto | Folder.id/name/folderType/createdAt/updatedAt; `parentId: FolderId?` представляет Folder.parent. Android допускает отсутствующие даты и читает ID/name/type |
 | FileItemDto | RemoteFile.id/capturedAt/uploadedAt/deletedAt/metadata; `folderId: FolderId` представляет folder; `originalFilename: String` — originalName; `mimeType: String`, `size: Integer`, `checksum: Checksum`, `fileType: FileType` берутся из StoredObject |
 | FileMetadataDto | Поля FileMetadata от width до longitude с теми же nullable типами; id/fileItem не выдаются |
 | FileChecksumDto | `id: FileId`, `originalFilename: String` из RemoteFile и `checksum: Checksum` из StoredObject; folderId отсутствует |
@@ -486,7 +486,7 @@ FileMetadata относится к одному RemoteFile, копируется
 | Upload | `file: Поток байтов` с filename из LocalMedia.displayName и MIME из LocalMedia.mimeType; `folderId: FolderId?` задаёт папку либо default routing; Android всегда передаёт ID CAMERA |
 | Test/message response | `message: String` — текст результата операции, без сохраняемой domain entity |
 
-В FileItemDto не раскрываются StoredObject.id/filePath/filename. Android допускает nullable поля FileItemDto и использует для успеха только id > 0; даты остаются строками, metadata — `Map<String, Any?>?`. Это терпимость декодирования ответа, не изменение обязательности Server полей. Ответные свойства не становятся полями LocalMedia.
+В FileItemDto не раскрываются StoredObject.id/filePath/filename. Android допускает nullable поля FileItemDto и использует для успеха upload только id > 0; Library показывает originalFilename, fileType, size, capturedAt и uploadedAt. Даты остаются строками, metadata — `Map<String, Any?>?`. Это терпимость декодирования ответа, не изменение обязательности Server полей. Ответные свойства не становятся полями LocalMedia.
 
 <a id="checksum-partition"></a>
 
@@ -507,7 +507,7 @@ FileMetadata относится к одному RemoteFile, копируется
 
 ## FilePage
 
-**Компонентное представление:** Server — `PageResponse<FileItemDto>`; Android этот список не запрашивает.
+**Компонентное представление:** Server — `PageResponse<FileItemDto>`; Android — `FilePageDto`, живёт один запрос.
 
 | Поле | Системный тип | Значение |
 | --- | --- | --- |
