@@ -483,10 +483,10 @@ FileMetadata относится к одному RemoteFile, копируется
 | Code confirmation | `code: String` — EmailRequest.code; при reset также новый `password: String` |
 | Folder operations | `parentId: FolderId?` для create; `targetParentId: FolderId` для move; `name: String` изменяет Folder.name |
 | File operations | `targetFolderId: FolderId` для move, `FolderId?` для copy; `originalName: String` для rename, `String?` для copy — новое RemoteFile.originalName |
-| Upload | `file: Поток байтов` с filename из LocalMedia.displayName и MIME из LocalMedia.mimeType; `folderId: FolderId?` задаёт папку либо default routing; Android всегда передаёт ID CAMERA |
+| Upload | `file: Поток байтов` с filename и MIME; `folderId: FolderId?` задаёт папку либо default routing. Backup Android берёт filename и MIME из LocalMedia и передаёт ID CAMERA; ручная загрузка — имя и MIME документа Storage Access Framework и ID открытой папки ROOT или USER |
 | Test/message response | `message: String` — текст результата операции, без сохраняемой domain entity |
 
-В FileItemDto не раскрываются StoredObject.id/filePath/filename. Android допускает nullable поля FileItemDto и использует для успеха upload только id > 0; Library показывает originalFilename, fileType, size, capturedAt и uploadedAt. Даты остаются строками, metadata — `Map<String, Any?>?`. Это терпимость декодирования ответа, не изменение обязательности Server полей. Ответные свойства не становятся полями LocalMedia.
+В FileItemDto не раскрываются StoredObject.id/filePath/filename. Android допускает nullable поля FileItemDto и использует для успеха upload backup только id > 0; Library показывает originalFilename, fileType, size, capturedAt и uploadedAt, а ручная передача сравнивает с локальным файлом size и checksum. Даты остаются строками, metadata — `Map<String, Any?>?`. Это терпимость декодирования ответа, не изменение обязательности Server полей. Ответные свойства не становятся полями LocalMedia.
 
 <a id="checksum-partition"></a>
 

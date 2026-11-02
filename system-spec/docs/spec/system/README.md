@@ -13,11 +13,11 @@ Status: AS-IS BASELINE / READY_FOR_MANUAL_REVIEW
 | [02-account-and-auth.md](02-account-and-auth.md) | Регистрация, активация, доступ, сессии и пароль | 11 |
 | [03-profile-and-settings.md](03-profile-and-settings.md) | Профиль, настройки и соединение | 6 |
 | [04-backup-and-sync.md](04-backup-and-sync.md) | Обнаружение фото, отправка и продолжение обработки | 13 |
-| [05-file-library.md](05-file-library.md) | Локальный монитор, просмотр библиотеки и удалённые файлы/папки | 17 |
+| [05-file-library.md](05-file-library.md) | Локальный монитор, просмотр библиотеки, ручная передача и удалённые файлы/папки | 19 |
 | [06-sharing-and-access.md](06-sharing-and-access.md) | Владение данными и отсутствие sharing | 2 |
 | [07-system-rules-and-recovery.md](07-system-rules-and-recovery.md) | Общие границы, согласованность и диагностика | 3 |
 
-Всего 52 сценария. AUTH-REG, AUTH-ACT, AUTH-LOGIN, AUTH-REFRESH, AUTH-LOGOUT, AUTH-BLOCK, SETTINGS-NETWORK, BACKUP-NEW, BACKUP-DISCOVER, BACKUP-CHECKSUM, BACKUP-TARGET, BACKUP-EXISTING, BACKUP-UPLOAD, BACKUP-DUPLICATE, BACKUP-METADATA, BACKUP-BACKGROUND, BACKUP-RETRY, BACKUP-RESTART, BACKUP-CHANGE, BACKUP-DELETE, FILES-LOCAL, FILES-BROWSE, FILES-LIST, FOLDERS-BROWSE, FOLDERS-CREATE, FOLDERS-RENAME, FOLDERS-MOVE, FOLDERS-DELETE, FILES-RENAME, FILES-MOVE, FILES-COPY, FILES-DELETE, FILES-DOWNLOAD, SYSTEM-STORAGE и SYSTEM-DIAGNOSTICS имеют Status IMPLEMENTING, остальные — AS-IS; существующие Availability сохранены. Нерешённые вопросы находятся рядом со сценариями и сами по себе не меняют их статус.
+Всего 54 сценария. AUTH-REG, AUTH-ACT, AUTH-LOGIN, AUTH-REFRESH, AUTH-LOGOUT, AUTH-BLOCK, SETTINGS-NETWORK, BACKUP-NEW, BACKUP-DISCOVER, BACKUP-CHECKSUM, BACKUP-TARGET, BACKUP-EXISTING, BACKUP-UPLOAD, BACKUP-DUPLICATE, BACKUP-METADATA, BACKUP-BACKGROUND, BACKUP-RETRY, BACKUP-RESTART, BACKUP-CHANGE, BACKUP-DELETE, FILES-LOCAL, FILES-BROWSE, FILES-LIST, FOLDERS-BROWSE, FILES-UPLOAD-MANUAL, FOLDERS-UPLOAD-MANUAL, FOLDERS-CREATE, FOLDERS-RENAME, FOLDERS-MOVE, FOLDERS-DELETE, FILES-RENAME, FILES-MOVE, FILES-COPY, FILES-DELETE, FILES-DOWNLOAD, SYSTEM-STORAGE и SYSTEM-DIAGNOSTICS имеют Status IMPLEMENTING, остальные — AS-IS; существующие Availability сохранены. Нерешённые вопросы находятся рядом со сценариями и сами по себе не меняют их статус.
 
 ## System Model rule
 
@@ -63,7 +63,7 @@ Availability отвечает только на вопрос о существу
 
 Например, TO-BE + NOT_PRESENT означает утверждённую, ещё отсутствующую функцию; IMPLEMENTING + SERVER_ONLY может описывать уже проверенную серверную часть при отсутствии Android; ACCEPTED + END_TO_END — принятую проверенную реализацию обеих сторон. Это примеры будущей работы, не новые сценарии этого пакета.
 
-Availability относится к сценарию: запись файла видна на Android Library, но его скачивание остаётся SERVER_ONLY. Activation — внешний SERVER_ONLY шаг onboarding; reset API работает на Server, а страница из письма и resend остаются заглушками внутри этого пути.
+Availability относится к сценарию: запись файла видна и скачивается на Android Library, но его переименование остаётся SERVER_ONLY. Activation — внешний SERVER_ONLY шаг onboarding; reset API работает на Server, а страница из письма и resend остаются заглушками внутри этого пути.
 
 ## Лёгкий формат сценария
 
