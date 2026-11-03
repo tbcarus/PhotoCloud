@@ -284,13 +284,13 @@ SYNCED — сохранённый вывод Android после logical existing
 | `parent` | Folder? | Родитель; создаваемая ROOT не имеет родителя |
 | `name` | String | Логическое имя |
 | `folderType` | FolderType | Категория, неизменяемая через API |
-| `backupSource` | UUID? | Идентификатор автоматического источника Android, переданный при регистрации ([BACKUP-SOURCE-REGISTER](04-backup-and-sync.md#backup-source-register)); задан только у корня источника — USER-папки, прямого потомка AUTO_UPLOADS; уникален в пределах владельца, у разных пользователей может совпадать. Через API не меняется |
+| `backupSource` | UUID? | Идентификатор автоматического источника Android, переданный при регистрации ([BACKUP-SOURCE-REGISTER](04-backup-and-sync.md#backup-source-register)); задан только у корня активного источника — USER-папки, прямого потомка AUTO_UPLOADS; уникален в пределах владельца, у разных пользователей может совпадать. Отключение источника его очищает ([BACKUP-SOURCE-DISABLE](04-backup-and-sync.md#backup-source-disable)), иначе через API не меняется |
 | `createdAt` | DateTime | Время создания |
 | `updatedAt` | DateTime | Время последнего обновления |
 
 ### Связи
 
-Folder принадлежит User, содержит RemoteFile и имеет прямых потомков Folder. Отдельного сохраняемого поля children нет. По сохранённым данным различаются системный контейнер (folderType=AUTO_UPLOADS), корень источника (USER с backupSource), вложенный элемент источника (USER или RemoteFile, среди предков которого есть корень источника) и обычная папка; признака «источник активен» и отключения источника пока нет. Обычное дерево создаётся в пределах пользователя; структура хранения сама не гарантирует совпадение владельца parent или отсутствие длинных циклов: это обеспечивают операции под блокировкой ([структурные изменения](01-system-model.md#library-names)). Ограничения системных папок и перемещений находятся в [операциях папок](05-file-library.md#folders-browse).
+Folder принадлежит User, содержит RemoteFile и имеет прямых потомков Folder. Отдельного сохраняемого поля children нет. По сохранённым данным различаются системный контейнер (folderType=AUTO_UPLOADS), корень активного источника (USER с backupSource), элемент активного дерева (папка, у которой она сама или предок до AUTO_UPLOADS имеет backupSource, и RemoteFile такой папки) и обычная папка. Активность определяется только наличием backupSource на корне и на вложенных объектах не дублируется. Отключённый источник — прямой потомок AUTO_UPLOADS без backupSource — обычная USER-папка; ограничения активного дерева — [FOLDERS-MANAGED-TREE](05-file-library.md#folders-managed-tree). Обычное дерево создаётся в пределах пользователя; структура хранения сама не гарантирует совпадение владельца parent или отсутствие длинных циклов: это обеспечивают операции под блокировкой ([структурные изменения](01-system-model.md#library-names)). Ограничения системных папок и перемещений находятся в [операциях папок](05-file-library.md#folders-browse).
 
 <a id="folder-type"></a>
 
@@ -303,7 +303,7 @@ Folder принадлежит User, содержит RemoteFile и имеет п
 | `AUTO_UPLOADS` | Системный контейнер AutoUploads: единственный у пользователя прямой потомок ROOT, содержит только корни автоматических источников |
 | `USER` | Пользовательская папка, создаваемая под ROOT/USER; корень источника и его вложенные папки — тоже USER |
 
-CAMERA — системная конечная папка. ROOT, CAMERA и AUTO_UPLOADS нельзя переименовать, переместить или удалить через текущий API. Создание CAMERA и получение её ID Android описывает [BACKUP-TARGET](04-backup-and-sync.md#backup-target). AUTO_UPLOADS создаётся при первой регистрации источника ([BACKUP-SOURCE-REGISTER](04-backup-and-sync.md#backup-source-register)); прямыми потомками в нём могут быть только корни источников, созданные регистрацией, файлов в самом контейнере нет. Корень источника нельзя переместить. Защиты остального дерева источника нет: его вложенные папки и файлы подчиняются обычным операциям библиотеки, а корень можно переименовать и удалить.
+CAMERA — системная конечная папка. ROOT, CAMERA и AUTO_UPLOADS нельзя переименовать, переместить или удалить через текущий API. Создание CAMERA и получение её ID Android описывает [BACKUP-TARGET](04-backup-and-sync.md#backup-target). AUTO_UPLOADS создаётся при первой регистрации источника ([BACKUP-SOURCE-REGISTER](04-backup-and-sync.md#backup-source-register)); прямыми потомками в нём могут быть только корни источников, созданные регистрацией, и отключённые источники, ещё не перенесённые из него; файлов в самом контейнере нет. Дерево активного источника меняет только механизм резервирования этого источника ([FOLDERS-MANAGED-TREE](05-file-library.md#folders-managed-tree)); отключённый источник подчиняется обычным операциям библиотеки и может быть перенесён из AUTO_UPLOADS, но не обратно.
 
 <a id="library-names"></a>
 
@@ -484,9 +484,9 @@ FileMetadata относится к одному RemoteFile, копируется
 | LoginResponse / RefreshResponse | При login строки TokenPair; при refresh `accessToken: String` и, только при замене refresh, `refreshToken: String`; без замены поля refreshToken в ответе нет |
 | Auth input | `email: String`, `password: String` — ввод пользователя; password является временным исходным паролем для проверки/хеширования, не полем хранения User |
 | Code confirmation | `code: String` — EmailRequest.code; при reset также новый `password: String` |
-| Folder operations | `parentId: FolderId?` для create; `targetParentId: FolderId` для move; `name: String` изменяет Folder.name; регистрация источника — `name: String` и `sourceUuid: UUID` — будущие Folder.name и Folder.backupSource |
-| File operations | `targetFolderId: FolderId` для move, `FolderId?` для copy; `originalName: String` для rename, `String?` для copy — новое RemoteFile.originalName |
-| Upload | `file: Поток байтов` с filename и MIME; `folderId: FolderId?` задаёт папку либо default routing. Backup Android берёт filename и MIME из LocalMedia и передаёт ID CAMERA; ручная загрузка — имя и MIME документа Storage Access Framework и ID открытой папки ROOT или USER |
+| Folder operations | `parentId: FolderId?` для create; `targetParentId: FolderId` для move; `name: String` изменяет Folder.name; регистрация источника — `name: String` и `sourceUuid: UUID` — будущие Folder.name и Folder.backupSource; `backupSource: UUID?` в create и rename — UUID активного источника, от имени механизма резервирования которого выполняется операция |
+| File operations | `targetFolderId: FolderId` для move, `FolderId?` для copy; `originalName: String` для rename, `String?` для copy — новое RemoteFile.originalName; `backupSource: UUID?` в rename — как у Folder operations |
+| Upload | `file: Поток байтов` с filename и MIME; `folderId: FolderId?` задаёт папку либо default routing; `backupSource: UUID?` — как у Folder operations. Backup Android берёт filename и MIME из LocalMedia и передаёт ID CAMERA; ручная загрузка — имя и MIME документа Storage Access Framework и ID открытой папки ROOT или USER |
 | Test/message response | `message: String` — текст результата операции, без сохраняемой domain entity |
 
 В FileItemDto не раскрываются StoredObject.id/filePath/filename. Android допускает nullable поля FileItemDto и использует для успеха upload backup только id > 0; Library показывает originalFilename, fileType, size, capturedAt и uploadedAt, а ручная передача сравнивает с локальным файлом size и checksum. Даты остаются строками, metadata — `Map<String, Any?>?`. Это терпимость декодирования ответа, не изменение обязательности Server полей. Ответные свойства не становятся полями LocalMedia.
@@ -629,7 +629,7 @@ WorkInfo относится к Android WorkManager, а не LocalMedia. Знач
 | Поле | Системный тип | Значение |
 | --- | --- | --- |
 | `id` | String | UUID ошибки, не идентификатор сущности или sync attempt |
-| `code` | String | Прикладной код ошибки |
+| `code` | String | Прикладной код ошибки; FOLDER_MANAGED — операция над деревом активного источника не разрешена ([FOLDERS-MANAGED-TREE](05-file-library.md#folders-managed-tree)) |
 | `message` | String | Описание |
 | `fieldErrors` | `Map<String,String>?` | Ошибки отдельных входных полей |
 

@@ -12,12 +12,12 @@ Status: AS-IS BASELINE / READY_FOR_MANUAL_REVIEW
 | [01-system-model.md](01-system-model.md) | Канонические сущности, поля, типы, связи и состояния | 0 |
 | [02-account-and-auth.md](02-account-and-auth.md) | Регистрация, активация, доступ, сессии и пароль | 11 |
 | [03-profile-and-settings.md](03-profile-and-settings.md) | Профиль, настройки и соединение | 6 |
-| [04-backup-and-sync.md](04-backup-and-sync.md) | Обнаружение фото, отправка, продолжение обработки и регистрация автоматических источников | 14 |
-| [05-file-library.md](05-file-library.md) | Локальный монитор, просмотр библиотеки, ручная передача, контейнер AutoUploads и удалённые файлы/папки | 20 |
+| [04-backup-and-sync.md](04-backup-and-sync.md) | Обнаружение фото, отправка, продолжение обработки, регистрация и отключение автоматических источников | 15 |
+| [05-file-library.md](05-file-library.md) | Локальный монитор, просмотр библиотеки, ручная передача, контейнер AutoUploads, защита активных источников и удалённые файлы/папки | 21 |
 | [06-sharing-and-access.md](06-sharing-and-access.md) | Владение данными и отсутствие sharing | 2 |
 | [07-system-rules-and-recovery.md](07-system-rules-and-recovery.md) | Общие границы, согласованность и диагностика | 3 |
 
-Всего 56 сценариев. AUTH-REG, AUTH-ACT, AUTH-LOGIN, AUTH-REFRESH, AUTH-LOGOUT, AUTH-BLOCK, SETTINGS-NETWORK, BACKUP-NEW, BACKUP-DISCOVER, BACKUP-CHECKSUM, BACKUP-TARGET, BACKUP-EXISTING, BACKUP-UPLOAD, BACKUP-DUPLICATE, BACKUP-METADATA, BACKUP-BACKGROUND, BACKUP-RETRY, BACKUP-RESTART, BACKUP-CHANGE, BACKUP-DELETE, BACKUP-SOURCE-REGISTER, FILES-LOCAL, FILES-BROWSE, FILES-LIST, FOLDERS-BROWSE, FILES-UPLOAD-MANUAL, FOLDERS-UPLOAD-MANUAL, FOLDERS-CREATE, FOLDERS-AUTO-UPLOADS, FOLDERS-RENAME, FOLDERS-MOVE, FOLDERS-DELETE, FILES-RENAME, FILES-MOVE, FILES-COPY, FILES-DELETE, FILES-DOWNLOAD, SYSTEM-STORAGE и SYSTEM-DIAGNOSTICS имеют Status IMPLEMENTING, остальные — AS-IS; существующие Availability сохранены. Нерешённые вопросы находятся рядом со сценариями и сами по себе не меняют их статус.
+Всего 58 сценариев. AUTH-REG, AUTH-ACT, AUTH-LOGIN, AUTH-REFRESH, AUTH-LOGOUT, AUTH-BLOCK, SETTINGS-NETWORK, BACKUP-NEW, BACKUP-DISCOVER, BACKUP-CHECKSUM, BACKUP-TARGET, BACKUP-EXISTING, BACKUP-UPLOAD, BACKUP-DUPLICATE, BACKUP-METADATA, BACKUP-BACKGROUND, BACKUP-RETRY, BACKUP-RESTART, BACKUP-CHANGE, BACKUP-DELETE, BACKUP-SOURCE-REGISTER, BACKUP-SOURCE-DISABLE, FILES-LOCAL, FILES-BROWSE, FILES-LIST, FOLDERS-BROWSE, FILES-UPLOAD-MANUAL, FOLDERS-UPLOAD-MANUAL, FOLDERS-CREATE, FOLDERS-AUTO-UPLOADS, FOLDERS-MANAGED-TREE, FOLDERS-RENAME, FOLDERS-MOVE, FOLDERS-DELETE, FILES-RENAME, FILES-MOVE, FILES-COPY, FILES-DELETE, FILES-DOWNLOAD, SYSTEM-STORAGE и SYSTEM-DIAGNOSTICS имеют Status IMPLEMENTING, остальные — AS-IS; существующие Availability сохранены. Нерешённые вопросы находятся рядом со сценариями и сами по себе не меняют их статус.
 
 ## System Model rule
 
