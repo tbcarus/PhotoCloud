@@ -16,6 +16,7 @@
 | `UserId`, `FolderId`, `FileId`, `StoredObjectId`, `MetadataId`, `SessionId`, `EmailRequestId` | Идентификаторы записей на конкретном Server; одинаковые числа на разных Server не связывают объекты |
 | `MediaId` | Положительный MediaStore ID в локальном индексе установки; отдельного volume/device namespace нет |
 | `Checksum` | SHA-256 содержимого конкретного чтения: 64 шестнадцатеричных символа в нижнем регистре |
+| `UUID` | Идентификатор, создаваемый клиентом; Server принимает любой корректный UUID и сохраняет его без изменения |
 | `List<T>`, `Set<T>`, `Map<K,V>` | Список, множество и отображение значений |
 | `T?` | Значение может отсутствовать; это не отдельное состояние обработки |
 
@@ -283,12 +284,13 @@ SYNCED — сохранённый вывод Android после logical existing
 | `parent` | Folder? | Родитель; создаваемая ROOT не имеет родителя |
 | `name` | String | Логическое имя |
 | `folderType` | FolderType | Категория, неизменяемая через API |
+| `backupSource` | UUID? | Идентификатор автоматического источника Android, переданный при регистрации ([BACKUP-SOURCE-REGISTER](04-backup-and-sync.md#backup-source-register)); задан только у корня источника — USER-папки, прямого потомка AUTO_UPLOADS; уникален в пределах владельца, у разных пользователей может совпадать. Через API не меняется |
 | `createdAt` | DateTime | Время создания |
 | `updatedAt` | DateTime | Время последнего обновления |
 
 ### Связи
 
-Folder принадлежит User, содержит RemoteFile и имеет прямых потомков Folder. Отдельного сохраняемого поля children нет. Обычное дерево создаётся в пределах пользователя; структура хранения сама не гарантирует совпадение владельца parent или отсутствие длинных циклов: это обеспечивают операции под блокировкой ([структурные изменения](01-system-model.md#library-names)). Ограничения системных папок и перемещений находятся в [операциях папок](05-file-library.md#folders-browse).
+Folder принадлежит User, содержит RemoteFile и имеет прямых потомков Folder. Отдельного сохраняемого поля children нет. По сохранённым данным различаются системный контейнер (folderType=AUTO_UPLOADS), корень источника (USER с backupSource), вложенный элемент источника (USER или RemoteFile, среди предков которого есть корень источника) и обычная папка; признака «источник активен» и отключения источника пока нет. Обычное дерево создаётся в пределах пользователя; структура хранения сама не гарантирует совпадение владельца parent или отсутствие длинных циклов: это обеспечивают операции под блокировкой ([структурные изменения](01-system-model.md#library-names)). Ограничения системных папок и перемещений находятся в [операциях папок](05-file-library.md#folders-browse).
 
 <a id="folder-type"></a>
 
@@ -298,17 +300,18 @@ Folder принадлежит User, содержит RemoteFile и имеет п
 | --- | --- |
 | `ROOT` | Единственная корневая папка пользователя, создаётся лениво с именем root |
 | `CAMERA` | Системная папка Camera: назначение backup Android и default routing IMAGE/VIDEO |
-| `USER` | Пользовательская папка, создаваемая под ROOT/USER |
+| `AUTO_UPLOADS` | Системный контейнер AutoUploads: единственный у пользователя прямой потомок ROOT, содержит только корни автоматических источников |
+| `USER` | Пользовательская папка, создаваемая под ROOT/USER; корень источника и его вложенные папки — тоже USER |
 
-CAMERA — системная конечная папка. ROOT и CAMERA нельзя переименовать, переместить или удалить через текущий API. Создание CAMERA и получение её ID Android описывает [BACKUP-TARGET](04-backup-and-sync.md#backup-target).
+CAMERA — системная конечная папка. ROOT, CAMERA и AUTO_UPLOADS нельзя переименовать, переместить или удалить через текущий API. Создание CAMERA и получение её ID Android описывает [BACKUP-TARGET](04-backup-and-sync.md#backup-target). AUTO_UPLOADS создаётся при первой регистрации источника ([BACKUP-SOURCE-REGISTER](04-backup-and-sync.md#backup-source-register)); прямыми потомками в нём могут быть только корни источников, созданные регистрацией, файлов в самом контейнере нет. Корень источника нельзя переместить. Защиты остального дерева источника нет: его вложенные папки и файлы подчиняются обычным операциям библиотеки, а корень можно переименовать и удалить.
 
 <a id="library-names"></a>
 
 ## Camera, обычная библиотека и имена
 
-Обычная библиотека — ROOT и USER-папки. Camera — папка типа CAMERA со своими правилами: одинаковые имена допустимы, duplicate определяется по владельцу, папке и checksum, а физическое имя и путь задаются при создании StoredObject. Перенос между Camera и библиотекой запрещён, копирование возможно только из Camera в библиотеку ([FILES-MOVE](05-file-library.md#files-move), [FILES-COPY](05-file-library.md#files-copy)).
+Обычная библиотека — ROOT, USER-папки и контейнер AUTO_UPLOADS с деревьями источников: имена, конфликты и физическое размещение в них — как у остальной библиотеки. Camera — папка типа CAMERA со своими правилами: одинаковые имена допустимы, duplicate определяется по владельцу, папке и checksum, а физическое имя и путь задаются при создании StoredObject. Перенос между Camera и библиотекой запрещён, копирование возможно только из Camera в библиотеку ([FILES-MOVE](05-file-library.md#files-move), [FILES-COPY](05-file-library.md#files-copy)).
 
-В каталоге обычной библиотеки файлы и папки используют одно пространство имён: имя принадлежит только одному объекту. Сравнение выполняет PostgreSQL через `lower()` по Folder.name и RemoteFile.originalName, поэтому результат зависит от locale БД; в Java отдельного сравнения имён нет. Имя включает расширение, регистр сохраняется как передан. Переименование объекта с изменением только регистра допустимо. В ROOT имя Camera зарезервировано независимо от регистра, даже если системная Camera ещё не создана: такое имя даёт 409.
+В каталоге обычной библиотеки файлы и папки используют одно пространство имён: имя принадлежит только одному объекту. Сравнение выполняет PostgreSQL через `lower()` по Folder.name и RemoteFile.originalName, поэтому результат зависит от locale БД; в Java отдельного сравнения имён нет. Имя включает расширение, регистр сохраняется как передан. Переименование объекта с изменением только регистра допустимо. В ROOT имя Camera зарезервировано независимо от регистра, даже если системная Camera ещё не создана: такое имя даёт 409. Имя AutoUploads не зарезервировано: существующие папка или файл с этим именем без учёта регистра не становятся системным контейнером, и регистрация источника получает 409.
 
 Правила имени (нарушение → 400, автоматических исправлений нет):
 
@@ -323,7 +326,7 @@ CAMERA — системная конечная папка. ROOT и CAMERA нел
 
 Правила проверяет Server; на Camera-файлы они не распространяются: их имя очищается прежним способом ([BACKUP-METADATA](04-backup-and-sync.md#backup-metadata)).
 
-Структурные изменения одного пользователя выполняются по очереди: транзакция блокирует строку его ROOT (`SELECT ... FOR NO KEY UPDATE`), проверяет обе таблицы и только затем пишет. В эту очередь входят создание, переименование, перемещение и удаление папок и файлов, upload, copy и получение Camera. Физические изменения библиотеки выполняются внутри этой же транзакции, после записи в БД и до COMMIT; приём потока, расчёт checksum и копирование байтов во временный файл идут вне блокировки. Блокировка живёт до конца этой транзакции и не удерживается при приёме потока, вычислении checksum и публикации байтов. Уникальность имён файлов и duplicate Camera обеспечиваются этой очередью, а не ограничением БД: PostgreSQL не может построить частичный индекс по типу родительской папки. Уникальное ограничение БД есть только у имён папок одного родителя.
+Структурные изменения одного пользователя выполняются по очереди: транзакция блокирует строку его ROOT (`SELECT ... FOR NO KEY UPDATE`), проверяет обе таблицы и только затем пишет. В эту очередь входят создание, переименование, перемещение и удаление папок и файлов, upload, copy, получение Camera и регистрация источника. Физические изменения библиотеки выполняются внутри этой же транзакции, после записи в БД и до COMMIT; приём потока, расчёт checksum и копирование байтов во временный файл идут вне блокировки. Блокировка живёт до конца этой транзакции и не удерживается при приёме потока, вычислении checksum и публикации байтов. Уникальность имён файлов и duplicate Camera обеспечиваются этой очередью, а не ограничением БД: PostgreSQL не может построить частичный индекс по типу родительской папки. Ограничения БД есть у имён папок одного родителя, у единственного AUTO_UPLOADS пользователя, у backupSource в пределах пользователя и у наличия backupSource только у USER; то, что корень источника — прямой потомок AUTO_UPLOADS, обеспечивают операции.
 
 <a id="remote-file"></a>
 
@@ -474,14 +477,14 @@ FileMetadata относится к одному RemoteFile, копируется
 | Представление | Связь с моделью и системный тип |
 | --- | --- |
 | UserDto | User.id/email/displayName/enabled/banned/roles/createdAt/lastUpdate/lastLoginAt с теми же типами; passwordHash не возвращается |
-| FolderDto | Folder.id/name/folderType/createdAt/updatedAt; `parentId: FolderId?` представляет Folder.parent. Android допускает отсутствующие даты и читает ID/name/type |
+| FolderDto | Folder.id/name/folderType/backupSource/createdAt/updatedAt; `parentId: FolderId?` представляет Folder.parent. Android допускает отсутствующие даты и читает ID/name/type; backupSource не читает |
 | FileItemDto | RemoteFile.id/capturedAt/uploadedAt/deletedAt/metadata; `folderId: FolderId` представляет folder; `originalFilename: String` — originalName; `mimeType: String`, `size: Integer`, `checksum: Checksum`, `fileType: FileType` берутся из StoredObject |
 | FileMetadataDto | Поля FileMetadata от width до longitude с теми же nullable типами; id/fileItem не выдаются |
 | FileChecksumDto | `id: FileId`, `originalFilename: String` из RemoteFile и `checksum: Checksum` из StoredObject; folderId отсутствует |
 | LoginResponse / RefreshResponse | При login строки TokenPair; при refresh `accessToken: String` и, только при замене refresh, `refreshToken: String`; без замены поля refreshToken в ответе нет |
 | Auth input | `email: String`, `password: String` — ввод пользователя; password является временным исходным паролем для проверки/хеширования, не полем хранения User |
 | Code confirmation | `code: String` — EmailRequest.code; при reset также новый `password: String` |
-| Folder operations | `parentId: FolderId?` для create; `targetParentId: FolderId` для move; `name: String` изменяет Folder.name |
+| Folder operations | `parentId: FolderId?` для create; `targetParentId: FolderId` для move; `name: String` изменяет Folder.name; регистрация источника — `name: String` и `sourceUuid: UUID` — будущие Folder.name и Folder.backupSource |
 | File operations | `targetFolderId: FolderId` для move, `FolderId?` для copy; `originalName: String` для rename, `String?` для copy — новое RemoteFile.originalName |
 | Upload | `file: Поток байтов` с filename и MIME; `folderId: FolderId?` задаёт папку либо default routing. Backup Android берёт filename и MIME из LocalMedia и передаёт ID CAMERA; ручная загрузка — имя и MIME документа Storage Access Framework и ID открытой папки ROOT или USER |
 | Test/message response | `message: String` — текст результата операции, без сохраняемой domain entity |
