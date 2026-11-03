@@ -223,6 +223,59 @@ LocalMedia ссылается на DeviceMedia через mediaStoreId/uri. serv
 
 Изменение size/lastModified сбрасывает checksum, serverFileId и сведения об ошибке. Отсутствие ID в полном снимке при полном доступе к изображениям удаляет запись. Переходы и исключения — [BACKUP-DISCOVER](04-backup-and-sync.md#backup-discover), [BACKUP-CHANGE](04-backup-and-sync.md#backup-change), [BACKUP-RETRY](04-backup-and-sync.md#backup-retry).
 
+<a id="backup-source"></a>
+
+## BackupSource
+
+Сохранённая Android запись выбранной папки устройства — источника автоматического резервирования на конкретном Server и в конкретном аккаунте ([BACKUP-SOURCE-CONNECT](04-backup-and-sync.md#backup-source-connect)).
+
+**Компонентное представление:** Android — BackupSource (Room); на Server ей соответствует корень источника — [Folder](01-system-model.md#folder) с тем же backupSource.
+
+### Поля
+
+| Поле | Системный тип | Значение |
+| --- | --- | --- |
+| `id` | Integer | Локальный ID записи |
+| `sourceUuid` | UUID | Идентификатор источника, создаётся один раз до первого запроса регистрации и не меняется; на Server — Folder.backupSource. Уникален в локальной БД |
+| `treeUri` | String | URI выбранного дерева Storage Access Framework с сохранённым разрешением на чтение |
+| `localName` | String | Имя выбранной папки на устройстве |
+| `serverName` | String | Имя корня источника в AutoUploads; задаёт пользователь, приложение его не исправляет |
+| `serverRootFolderId` | FolderId? | ID корня источника на Server; только после подтверждённой регистрации |
+| `serverUrl` | String | Адрес Server на момент подключения, построенный из сохранённых настроек ([SETTINGS-NETWORK](03-profile-and-settings.md#settings-network)) |
+| `accountId` | String | Subject access token пользователя на момент подключения |
+| `registrationState` | SourceRegistrationState | Состояние регистрации на Server |
+| `registrationError` | String? | Причина последнего неуспеха регистрации для показа |
+| `accessState` | SourceAccess | Последнее проверенное состояние доступа к дереву |
+| `createdAt` | DateTime | Время создания записи по часам устройства |
+
+### Связи и границы
+
+Запись принадлежит паре serverUrl + accountId: при выходе или смене Server она не удаляется и не показывается другому аккаунту, при возврате к прежним адресу и пользователю снова видна. Состояние регистрации и доступ к дереву независимы. Очереди файлов и папок источника нет; MediaFile/LocalMedia источник не использует.
+
+<a id="source-registration-state"></a>
+
+## SourceRegistrationState
+
+**Компонентное представление:** Android — RegistrationState, поле BackupSource.registrationState.
+
+| Значение | Смысл |
+| --- | --- |
+| `PENDING_REGISTRATION` | Подтверждённого ID нет; результат последнего запроса мог остаться неизвестным, поэтому serverName не меняется |
+| `REGISTRATION_FAILED` | Server окончательно отказал (409, 400): источник с этим UUID не создан, serverName можно изменить |
+| `ACTIVE` | Server подтвердил источник, serverRootFolderId сохранён; повторной регистрации нет |
+
+<a id="source-access"></a>
+
+## SourceAccess
+
+**Компонентное представление:** Android — SourceAccess, поле BackupSource.accessState.
+
+| Значение | Смысл |
+| --- | --- |
+| `AVAILABLE` | Разрешение сохранено, корень дерева читается |
+| `UNAVAILABLE` | Разрешение сохранено, но провайдер или папка не ответили: временная недоступность, не отзыв |
+| `PERMISSION_LOST` | Сохранённого разрешения на дерево нет |
+
 <a id="sync-state"></a>
 
 ## SyncState
@@ -477,7 +530,7 @@ FileMetadata относится к одному RemoteFile, копируется
 | Представление | Связь с моделью и системный тип |
 | --- | --- |
 | UserDto | User.id/email/displayName/enabled/banned/roles/createdAt/lastUpdate/lastLoginAt с теми же типами; passwordHash не возвращается |
-| FolderDto | Folder.id/name/folderType/backupSource/createdAt/updatedAt; `parentId: FolderId?` представляет Folder.parent. Android допускает отсутствующие даты и читает ID/name/type; backupSource не читает |
+| FolderDto | Folder.id/name/folderType/backupSource/createdAt/updatedAt; `parentId: FolderId?` представляет Folder.parent. Android допускает отсутствующие даты и читает ID/name/type/backupSource |
 | FileItemDto | RemoteFile.id/capturedAt/uploadedAt/deletedAt/metadata; `folderId: FolderId` представляет folder; `originalFilename: String` — originalName; `mimeType: String`, `size: Integer`, `checksum: Checksum`, `fileType: FileType` берутся из StoredObject |
 | FileMetadataDto | Поля FileMetadata от width до longitude с теми же nullable типами; id/fileItem не выдаются |
 | FileChecksumDto | `id: FileId`, `originalFilename: String` из RemoteFile и `checksum: Checksum` из StoredObject; folderId отсутствует |
