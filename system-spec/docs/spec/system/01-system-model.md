@@ -244,7 +244,7 @@ LocalMedia ссылается на DeviceMedia через mediaStoreId/uri. serv
 | `serverUrl` | String | Адрес Server на момент подключения, построенный из сохранённых настроек ([SETTINGS-NETWORK](03-profile-and-settings.md#settings-network)) |
 | `accountId` | String | Subject access token пользователя на момент подключения |
 | `registrationState` | SourceRegistrationState | Состояние регистрации на Server |
-| `registrationError` | String? | Причина последнего неуспеха регистрации для показа |
+| `registrationError` | String? | Причина последнего неуспеха регистрации либо обнаруженного прогоном отключения для показа; при отключении пользователем на этом устройстве пусто |
 | `accessState` | SourceAccess | Последнее проверенное состояние доступа к дереву |
 | `createdAt` | DateTime | Время создания записи по часам устройства |
 | `scanGeneration` | Integer | Номер текущего обхода дерева; 0 — обхода не было ([BACKUP-SOURCE-SYNC](04-backup-and-sync.md#backup-source-sync)) |
@@ -266,7 +266,7 @@ LocalMedia ссылается на DeviceMedia через mediaStoreId/uri. serv
 | `PENDING_REGISTRATION` | Подтверждённого ID нет; результат последнего запроса мог остаться неизвестным, поэтому serverName не меняется |
 | `REGISTRATION_FAILED` | Server окончательно отказал (409, 400): источник с этим UUID не создан, serverName можно изменить |
 | `ACTIVE` | Server подтвердил источник, serverRootFolderId сохранён; повторной регистрации нет |
-| `REMOTE_DISABLED` | Server больше не считает корень активным источником этого UUID (backupSource снят или папки нет в AutoUploads): резервирование остановлено, регистрация не повторяется |
+| `REMOTE_DISABLED` | Server больше не считает корень активным источником этого UUID: отключение подтверждено ответом 204 на этом устройстве ([BACKUP-SOURCE-DISABLE](04-backup-and-sync.md#backup-source-disable)) либо прогон обнаружил, что backupSource снят или папки нет в AutoUploads. Резервирование остановлено, регистрация не повторяется, запись и очередь сохраняются |
 
 <a id="source-access"></a>
 
