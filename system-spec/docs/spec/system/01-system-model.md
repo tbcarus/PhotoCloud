@@ -247,10 +247,13 @@ LocalMedia ссылается на DeviceMedia через mediaStoreId/uri. serv
 | `registrationError` | String? | Причина последнего неуспеха регистрации для показа |
 | `accessState` | SourceAccess | Последнее проверенное состояние доступа к дереву |
 | `createdAt` | DateTime | Время создания записи по часам устройства |
+| `scanGeneration` | Integer | Номер текущего обхода дерева; 0 — обхода не было ([BACKUP-SOURCE-SYNC](04-backup-and-sync.md#backup-source-sync)) |
+| `scanErrors` | Integer | Папки, не прочитанные в текущем обходе; при ненулевом значении обход неполный |
+| `lastScanAt` | DateTime? | Завершение последнего обхода по часам устройства |
 
 ### Связи и границы
 
-Запись принадлежит паре serverUrl + accountId: при выходе или смене Server она не удаляется и не показывается другому аккаунту, при возврате к прежним адресу и пользователю снова видна. Состояние регистрации и доступ к дереву независимы. Очереди файлов и папок источника нет; MediaFile/LocalMedia источник не использует.
+Запись принадлежит паре serverUrl + accountId: при выходе или смене Server она не удаляется и не показывается другому аккаунту, при возврате к прежним адресу и пользователю снова видна. Состояние регистрации и доступ к дереву независимы. Источник содержит [BackupFolder](01-system-model.md#backup-folder) и [BackupFile](01-system-model.md#backup-file) своего дерева; MediaFile/LocalMedia источник не использует.
 
 <a id="source-registration-state"></a>
 
@@ -263,6 +266,7 @@ LocalMedia ссылается на DeviceMedia через mediaStoreId/uri. serv
 | `PENDING_REGISTRATION` | Подтверждённого ID нет; результат последнего запроса мог остаться неизвестным, поэтому serverName не меняется |
 | `REGISTRATION_FAILED` | Server окончательно отказал (409, 400): источник с этим UUID не создан, serverName можно изменить |
 | `ACTIVE` | Server подтвердил источник, serverRootFolderId сохранён; повторной регистрации нет |
+| `REMOTE_DISABLED` | Server больше не считает корень активным источником этого UUID (backupSource снят или папки нет в AutoUploads): резервирование остановлено, регистрация не повторяется |
 
 <a id="source-access"></a>
 
@@ -275,6 +279,76 @@ LocalMedia ссылается на DeviceMedia через mediaStoreId/uri. serv
 | `AVAILABLE` | Разрешение сохранено, корень дерева читается |
 | `UNAVAILABLE` | Разрешение сохранено, но провайдер или папка не ответили: временная недоступность, не отзыв |
 | `PERMISSION_LOST` | Сохранённого разрешения на дерево нет |
+
+<a id="backup-folder"></a>
+
+## BackupFolder
+
+Папка дерева источника и её связь с Folder на Server.
+
+**Компонентное представление:** Android — BackupFolder (Room); на Server — USER-папка дерева источника.
+
+### Поля
+
+| Поле | Системный тип | Значение |
+| --- | --- | --- |
+| `id` | Integer | Локальный ID |
+| `sourceId` | Integer | BackupSource, к которому относится папка |
+| `parentId` | Integer? | Родительская BackupFolder; нет только у корня источника |
+| `name` | String | Имя папки на устройстве |
+| `relativePath` | String | Путь от выбранной папки, `""` у корня; идентичность внутри источника, уникален в нём |
+| `documentId` | String | Документ SAF при последнем чтении родителя; после переименования может смениться и идентичностью не считается |
+| `serverFolderId` | FolderId? | Папка на Server; у корня — BackupSource.serverRootFolderId |
+| `problem` | String? | Причина, по которой папку нельзя создать на Server; сбрасывается, когда папка снова найдена новым обходом |
+| `seenGeneration` | Integer | Последний обход, нашедший папку |
+| `listedGeneration` | Integer | Последний обход, прочитавший её содержимое |
+
+<a id="backup-file"></a>
+
+## BackupFile
+
+Файл дерева источника и его связь с RemoteFile.
+
+**Компонентное представление:** Android — BackupFile (Room).
+
+### Поля
+
+| Поле | Системный тип | Значение |
+| --- | --- | --- |
+| `id` | Integer | Локальный ID; задаёт порядок очереди (FIFO) |
+| `sourceId` | Integer | BackupSource файла |
+| `folderId` | Integer | BackupFolder, содержащая файл |
+| `name` | String | Имя файла на устройстве и в upload |
+| `relativePath` | String | Путь от выбранной папки; идентичность внутри источника, уникален в нём. Одинаковые пути разных источников независимы |
+| `documentId` | String | Документ SAF при последнем обходе |
+| `mimeType` | String? | MIME, сообщённый провайдером |
+| `size` | Integer? | Размер, сообщённый провайдером; null — неизвестен |
+| `lastModified` | DateTime? | Время изменения, сообщённое провайдером; null — неизвестно |
+| `checksum` | Checksum? | SHA-256 последнего чтения содержимого |
+| `serverFileId` | FileId? | RemoteFile, связанный с этим путём |
+| `syncedChecksum` | Checksum? | Checksum копии на Server, на которую указывает serverFileId |
+| `status` | BackupFileStatus | Состояние обработки |
+| `failureReason` | String? | Причина последнего пропуска, конфликта или ошибки |
+| `retryCount` | Integer | Число таких исходов подряд; успешная обработка обнуляет |
+| `lastFailureAt` | DateTime? | Время последнего такого исхода по часам устройства |
+| `seenGeneration` | Integer | Последний обход, нашедший файл |
+| `missingSince` | DateTime? | Файл не найден полным обходом без ошибок; серверная копия сохраняется |
+
+<a id="backup-file-status"></a>
+
+## BackupFileStatus
+
+**Компонентное представление:** Android — BackupFileStatus, поле BackupFile.status.
+
+| Значение | Смысл |
+| --- | --- |
+| `PENDING` | Нужно прочитать содержимое: новый файл, изменились или неизвестны сведения, повтор ошибки |
+| `UPLOADING` | Начатые hash и upload; в начале следующего прогона возвращается в PENDING |
+| `SYNCED` | На Server есть копия с syncedChecksum, равным checksum последнего чтения |
+| `CHANGED` | Содержимое отличается от копии serverFileId: новая версия не отправлена и ждёт архивирования прежней |
+| `SKIPPED` | Отправить нельзя до изменения файла: пустой, больше 100 МиБ, недопустимое имя, документ без локального содержимого, отказ Server 400/413 |
+| `CONFLICT` | Имя на Server занято папкой: файл не отправлен, существующий объект не меняется |
+| `FAILED` | Ошибка чтения, папка назначения не создана или файл изменился во время передачи: повтор при следующем обходе |
 
 <a id="sync-state"></a>
 
