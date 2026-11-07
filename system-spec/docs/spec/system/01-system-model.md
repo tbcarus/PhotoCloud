@@ -2,7 +2,7 @@
 
 Это каноническое определение системных сущностей, полей, типов и связей. Сценарии описывают операции над этой моделью. Имена RemoteFile, LocalMedia, DeviceMedia, PhysicalBytes и TokenPair обозначают системные представления существующих объектов, а не новые классы или хранилища.
 
-Модель описывает текущий As-Is. В ней нет сущностей Sharing, ACL, Device, Album, UserSettings, UploadSession или SyncSession: таких прикладных моделей сейчас нет.
+Модель описывает текущий As-Is. В ней нет сущностей ACL, Device, Album, UserSettings, UploadSession или SyncSession: таких прикладных моделей сейчас нет.
 
 <a id="system-types"></a>
 
@@ -13,7 +13,8 @@
 | `String`, `Boolean` | Строка и логическое значение |
 | `Integer`, `Number` | Целое число и число с возможной дробной частью |
 | `DateTime` | Дата и время; Server передаёт локальное время без offset, Android хранит время media/ошибок в epoch milliseconds |
-| `UserId`, `FolderId`, `FileId`, `StoredObjectId`, `MetadataId`, `SessionId`, `EmailRequestId` | Идентификаторы записей на конкретном Server; одинаковые числа на разных Server не связывают объекты |
+| `Instant` | Момент времени, независимый от часового пояса; Server хранит его со смещением и сравнивает как точку на шкале времени |
+| `UserId`, `FolderId`, `FileId`, `StoredObjectId`, `MetadataId`, `SessionId`, `EmailRequestId`, `ShareId` | Идентификаторы записей на конкретном Server; одинаковые числа на разных Server не связывают объекты |
 | `MediaId` | Положительный MediaStore ID в локальном индексе установки; отдельного volume/device namespace нет |
 | `Checksum` | SHA-256 содержимого конкретного чтения: 64 шестнадцатеричных символа в нижнем регистре |
 | `UUID` | Идентификатор, создаваемый клиентом; Server принимает любой корректный UUID и сохраняет его без изменения |
@@ -47,7 +48,7 @@
 
 ### Связи
 
-User владеет Folder, RemoteFile, StoredObject и EmailRequest. RefreshSession связана с ним по email, без прямой ссылки на User. Текущие роли пользователя определяют полномочия защищённого запроса; влияние enabled/banned на уже выданные токены описывает [AUTH-BLOCK](02-account-and-auth.md#auth-block).
+User владеет Folder, RemoteFile, StoredObject, EmailRequest и выданными Share и может быть получателем Share. RefreshSession связана с ним по email, без прямой ссылки на User. Текущие роли пользователя определяют полномочия защищённого запроса; влияние enabled/banned на уже выданные токены описывает [AUTH-BLOCK](02-account-and-auth.md#auth-block).
 
 <a id="role"></a>
 
@@ -487,7 +488,7 @@ CAMERA — системная конечная папка. ROOT, CAMERA и AUTO_
 
 ### Связи
 
-User → Folder → RemoteFile → StoredObject → PhysicalBytes. У RemoteFile не более одной FileMetadata. Обычный upload/copy создаёт записи одного владельца, но сама модель допускает несовпадение владельцев связанных записей и несколько ссылок на StoredObject. Из этого не следует sharing.
+User → Folder → RemoteFile → StoredObject → PhysicalBytes. У RemoteFile не более одной FileMetadata. Обычный upload/copy создаёт записи одного владельца, но сама модель допускает несовпадение владельцев связанных записей и несколько ссылок на StoredObject. Совместный доступ выражается только [Share](01-system-model.md#share) и таких ссылок не создаёт.
 
 Отдельных uploaded/status или version chain у RemoteFile нет. Rename меняет originalName, move — folder, copy создаёт новую identity. Правила имён — [Camera, обычная библиотека и имена](01-system-model.md#library-names), детали конфликтов и удаления остаются в [библиотеке файлов](05-file-library.md).
 
@@ -602,6 +603,44 @@ FileMetadata относится к одному RemoteFile, копируется
 
 `IMAGE`, `VIDEO`, `AUDIO`, `DOCUMENT`, `ARCHIVE`, `OTHER` — категории MIME на Server, не состояния синхронизации. Server принимает и другие типы помимо изображений; Android discovery/backup охватывает только изображения в своей области.
 
+<a id="share"></a>
+
+## Share
+
+Разрешение на один объект владельца — папку или файл. Server проверяет по нему чтение USER-доступа ([ACCESS-READ](06-sharing-and-access.md#access-read)); API выдачи и отзыва, LINK-доступ по ссылке и Android UI отсутствуют ([SHARING-ABSENT](06-sharing-and-access.md#sharing-absent)).
+
+**Компонентное представление:** Server — Share; Android его не использует.
+
+### Поля
+
+| Поле | Системный тип | Значение |
+| --- | --- | --- |
+| `id` | ShareId | Идентификатор разрешения |
+| `owner` | User | Владелец объекта. Само поле право не доказывает: проверка чтения сравнивает его с фактическим Folder.user/RemoteFile.user и игнорирует несовпадающую запись |
+| `folder` | Folder? | Целевая папка |
+| `fileItem` | RemoteFile? | Целевой файл |
+| `kind` | [ShareKind](01-system-model.md#share-kind) | Вид разрешения |
+| `recipient` | User? | Получатель; есть только у USER и не совпадает с owner |
+| `tokenHash` | String? | Хеш секрета ссылки; есть только у LINK, уникален среди всех Share |
+| `encryptedToken` | String? | Зашифрованный секрет ссылки; есть только у LINK. Секрет открытым текстом не хранится; генерация и шифрование ещё не реализованы, API такие записи не создаёт |
+| `expiresAt` | Instant? | Окончание действия; отсутствует — бессрочно. Разрешение действует, пока текущее время строго меньше expiresAt |
+| `createdAt` | Instant | Время создания записи |
+
+### Связи и правила
+
+Задан ровно один из folder и fileItem. USER содержит recipient и не содержит tokenHash и encryptedToken, LINK — наоборот. На пару объект + получатель — не более одного USER; LINK на один объект может быть несколько. Эти правила, уникальность tokenHash и запрет разрешения самому себе проверяет БД; совпадение owner с владельцем объекта БД не проверяет.
+
+Удаление целевого объекта (в том числе вместе с папкой-предком), владельца или получателя удаляет Share. Отзыв будет удалять запись физически; истёкшая запись остаётся, отдельного поля состояния нет — оно вычисляется по expiresAt. Share не создаёт RemoteFile, StoredObject или байты получателя: разрешение на папку действует на её текущее поддерево Folder. Объектом разрешения не могут быть ROOT и AUTO_UPLOADS: проверка чтения не учитывает такие записи, запрет при создании появится вместе с API выдачи. CAMERA, обычные USER-папки и корни активных источников допустимы.
+
+<a id="share-kind"></a>
+
+## ShareKind
+
+| Значение | Смысл |
+| --- | --- |
+| `USER` | Разрешение зарегистрированному получателю |
+| `LINK` | Разрешение по секрету ссылки; публичного доступа по ссылке пока нет |
+
 <a id="api-projections"></a>
 
 ## Представления операций
@@ -611,7 +650,7 @@ FileMetadata относится к одному RemoteFile, копируется
 | Представление | Связь с моделью и системный тип |
 | --- | --- |
 | UserDto | User.id/email/displayName/enabled/banned/roles/createdAt/lastUpdate/lastLoginAt с теми же типами; passwordHash не возвращается |
-| FolderDto | Folder.id/name/folderType/backupSource/createdAt/updatedAt; `parentId: FolderId?` представляет Folder.parent. Android допускает отсутствующие даты и читает ID/name/type/backupSource |
+| FolderDto | Folder.id/name/folderType/backupSource/createdAt/updatedAt; `parentId: FolderId?` представляет Folder.parent. Android допускает отсутствующие даты и читает ID/name/type/backupSource. Получателю чужой папки по Share backupSource не выдаётся ([ACCESS-READ](06-sharing-and-access.md#access-read)) |
 | FileItemDto | RemoteFile.id/capturedAt/uploadedAt/deletedAt/metadata; `folderId: FolderId` представляет folder; `originalFilename: String` — originalName; `mimeType: String`, `size: Integer`, `checksum: Checksum`, `fileType: FileType` берутся из StoredObject |
 | FileMetadataDto | Поля FileMetadata от width до longitude с теми же nullable типами; id/fileItem не выдаются |
 | FileChecksumDto | `id: FileId`, `originalFilename: String` из RemoteFile и `checksum: Checksum` из StoredObject; folderId отсутствует |
