@@ -1,6 +1,6 @@
 # Sharing и доступ
 
-Изменять файлы и папки может только их владелец. Читать чужие файлы и папки Server позволяет по действующему USER-разрешению [Share](01-system-model.md#share). Владелец выдаёт и отзывает такие разрешения через API, получатель видит их в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)), в том числе на Android. Публичных ссылок и Android UI выдачи и управления доступами нет.
+Изменять файлы и папки может только их владелец. Читать чужие файлы и папки Server позволяет по действующему USER-разрешению [Share](01-system-model.md#share). Владелец выдаёт, изменяет и отзывает такие разрешения, в том числе на Android ([поделиться](05-file-library.md#files-browse-sharing)); получатель видит их в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Публичных ссылок нет.
 
 Используемая модель: [User](01-system-model.md#user), [Folder](01-system-model.md#folder), [RemoteFile](01-system-model.md#remote-file), [StoredObject](01-system-model.md#stored-object) и [Share](01-system-model.md#share).
 
@@ -84,7 +84,7 @@
 
 **Status:** IMPLEMENTING
 
-**Availability:** SERVER_ONLY
+**Availability:** END_TO_END
 
 ### Назначение
 
@@ -92,7 +92,7 @@
 
 ### Текущее поведение
 
-Владелец выполняет запрос с действующим access ([AUTH-ACCESS](02-account-and-auth.md#auth-access)).
+Владелец выполняет запрос с действующим access ([AUTH-ACCESS](02-account-and-auth.md#auth-access)). Android делает это из меню «Поделиться» объекта библиотеки и раздела «Предоставлено мной» ([поделиться](05-file-library.md#files-browse-sharing)).
 
 **Выдача** (`POST /api/v1/shares/users`): ровно один из fileId и folderId, один или несколько emails, необязательный expiresAt.
 1. Server проверяет вход: ровно один ресурс, непустой список корректных адресов, expiresAt отсутствует или позже текущего момента.
@@ -127,11 +127,11 @@
 
 ### Текущие ограничения
 
-Верхний предел числа адресов в одном запросе не задан. Пользовательского UI выдачи нет: операции доступны API-клиенту. Уведомлений получателю нет.
+Верхний предел числа адресов в одном запросе не задан. Пользовательского поиска получателей и автодополнения нет: нужен точный email. Уведомлений получателю нет.
 
 <a id="sharing-absent"></a>
 
-## SHARING-ABSENT — Публичные ссылки и интерфейс sharing
+## SHARING-ABSENT — Публичные ссылки и уведомления sharing
 
 **Status:** AS-IS
 
@@ -143,9 +143,9 @@
 
 ### Текущее поведение
 
-В Android нет UI выдачи доступа, изменения срока и отзыва, а также списка выданных доступов: эту часть API ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)) Android не использует. Полученные доступы Android показывает ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Публичных ссылок и публичных endpoints нет ни в Android, ни в Server. Модель [Share](01-system-model.md#share) содержит поля LINK, но токены ссылок не генерируются и не шифруются, USER API таких записей не создаёт, а проверка чтения учитывает только USER. Обычные upload и copy не создают Share и общих ссылок между владельцами.
+USER-доступы выдаются и управляются в Android и через API ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)), полученные показываются в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Уведомлений получателю о выдаче, изменении и отзыве нет, поиска пользователей и автодополнения адресов нет. Публичных ссылок и публичных endpoints нет ни в Android, ни в Server. Модель [Share](01-system-model.md#share) содержит поля LINK, но токены ссылок не генерируются и не шифруются, USER API таких записей не создаёт, а проверка чтения учитывает только USER. Обычные upload и copy не создают Share и общих ссылок между владельцами.
 
-Пользователь Android не может сам поделиться файлом или папкой; поделиться по ссылке нельзя никак.
+Поделиться по ссылке нельзя никак.
 
 ### Текущие ограничения
 
