@@ -1,6 +1,6 @@
 # Sharing и доступ
 
-Изменять файлы и папки может только их владелец. Читать чужие файлы и папки Server позволяет по действующему USER-разрешению [Share](01-system-model.md#share). Владелец выдаёт и отзывает такие разрешения через API, получатель видит их в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Публичных ссылок и Android UI sharing нет.
+Изменять файлы и папки может только их владелец. Читать чужие файлы и папки Server позволяет по действующему USER-разрешению [Share](01-system-model.md#share). Владелец выдаёт и отзывает такие разрешения через API, получатель видит их в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)), в том числе на Android. Публичных ссылок и Android UI выдачи и управления доступами нет.
 
 Используемая модель: [User](01-system-model.md#user), [Folder](01-system-model.md#folder), [RemoteFile](01-system-model.md#remote-file), [StoredObject](01-system-model.md#stored-object) и [Share](01-system-model.md#share).
 
@@ -38,7 +38,7 @@
 
 **Status:** IMPLEMENTING
 
-**Availability:** SERVER_ONLY
+**Availability:** END_TO_END
 
 ### Назначение
 
@@ -74,7 +74,7 @@
 
 ### Текущие ограничения
 
-Доступы выдаёт и отзывает владелец ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)); получатель находит их в [SHARED-WITH-ME](05-file-library.md#shared-with-me). Android UI нет. Глобальный список файлов, checksums и ROOT показывают только собственные объекты.
+Доступы выдаёт и отзывает владелец ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)); получатель находит их в [SHARED-WITH-ME](05-file-library.md#shared-with-me). Android читает предоставленные ресурсы только в разделе «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me), [Android Library](05-file-library.md#shared-with-me-android)). Глобальный список файлов, checksums и ROOT показывают только собственные объекты.
 
 Блокировка или деактивация получателя на уже выданный access token не влияет: действует общее правило [AUTH-BLOCK](02-account-and-auth.md#auth-block).
 
@@ -143,9 +143,9 @@
 
 ### Текущее поведение
 
-В Android нет UI выдачи доступа, списка выданных доступов и раздела «Доступно мне»; серверный API USER-доступов ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)) Android не использует. Публичных ссылок и публичных endpoints нет ни в Android, ни в Server. Модель [Share](01-system-model.md#share) содержит поля LINK, но токены ссылок не генерируются и не шифруются, USER API таких записей не создаёт, а проверка чтения учитывает только USER. Обычные upload и copy не создают Share и общих ссылок между владельцами.
+В Android нет UI выдачи доступа, изменения срока и отзыва, а также списка выданных доступов: эту часть API ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)) Android не использует. Полученные доступы Android показывает ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Публичных ссылок и публичных endpoints нет ни в Android, ни в Server. Модель [Share](01-system-model.md#share) содержит поля LINK, но токены ссылок не генерируются и не шифруются, USER API таких записей не создаёт, а проверка чтения учитывает только USER. Обычные upload и copy не создают Share и общих ссылок между владельцами.
 
-Пользователь Android не может поделиться файлом или папкой; поделиться по ссылке нельзя никак.
+Пользователь Android не может сам поделиться файлом или папкой; поделиться по ссылке нельзя никак.
 
 ### Текущие ограничения
 
