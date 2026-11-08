@@ -607,7 +607,7 @@ FileMetadata относится к одному RemoteFile, копируется
 
 ## Share
 
-Разрешение на один объект владельца — папку или файл. Server проверяет по нему чтение USER-доступа ([ACCESS-READ](06-sharing-and-access.md#access-read)); владелец выдаёт и отзывает USER-доступ через API ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)), получатель видит и снимает свои доступы ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). LINK-доступ по ссылке и Android UI отсутствуют ([SHARING-ABSENT](06-sharing-and-access.md#sharing-absent)).
+Разрешение на один объект владельца — папку или файл. Server проверяет по нему чтение USER-доступа ([ACCESS-READ](06-sharing-and-access.md#access-read)); владелец выдаёт и отзывает USER-доступ через API ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)), получатель видит и снимает свои доступы ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Владелец создаёт LINK-доступ через API ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage)), чтение по нему без входа — [ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read); веб- и Android UI ссылок нет ([SHARING-ABSENT](06-sharing-and-access.md#sharing-absent)).
 
 **Компонентное представление:** Server — Share; Android его не использует.
 
@@ -621,8 +621,8 @@ FileMetadata относится к одному RemoteFile, копируется
 | `fileItem` | RemoteFile? | Целевой файл |
 | `kind` | [ShareKind](01-system-model.md#share-kind) | Вид разрешения |
 | `recipient` | User? | Получатель; есть только у USER и не совпадает с owner |
-| `tokenHash` | String? | Хеш секрета ссылки; есть только у LINK, уникален среди всех Share |
-| `encryptedToken` | String? | Зашифрованный секрет ссылки; есть только у LINK. Секрет открытым текстом не хранится; генерация и шифрование ещё не реализованы, API такие записи не создаёт |
+| `tokenHash` | String? | SHA-256 секрета ссылки, 64 шестнадцатеричных символа; есть только у LINK, уникален среди всех Share. По нему ищется ссылка |
+| `encryptedToken` | String? | Секрет ссылки, зашифрованный AES-GCM ключом конфигурации Server: Base64 от случайного nonce и шифртекста; есть только у LINK. Нужен только для повторной выдачи URL владельцу; открытым текстом секрет не хранится |
 | `expiresAt` | Instant? | Окончание действия; отсутствует — бессрочно. Разрешение действует, пока текущее время строго меньше expiresAt |
 | `createdAt` | Instant | Время создания записи |
 
@@ -639,7 +639,7 @@ FileMetadata относится к одному RemoteFile, копируется
 | Значение | Смысл |
 | --- | --- |
 | `USER` | Разрешение зарегистрированному получателю |
-| `LINK` | Разрешение по секрету ссылки; публичного доступа по ссылке пока нет |
+| `LINK` | Разрешение по секрету ссылки без входа; только чтение |
 
 <a id="api-projections"></a>
 
@@ -664,6 +664,11 @@ FileMetadata относится к одному RemoteFile, копируется
 | ShareDto | Share.id/expiresAt/createdAt; `resourceType: FILE\|FOLDER`, `resourceId` и `resourceName` — id и имя Share.fileItem либо Share.folder; `recipient` — ShareUserDto получателя; `status: ACTIVE\|EXPIRED` — вычисляется по expiresAt в момент ответа и не хранится. tokenHash и encryptedToken не выдаются |
 | SharedResourceDto | `shareId` — Share.id; `resourceType`, `resourceId`, `name` — как у ShareDto; `file: FileItemDto?` — только у файла; `owner` — ShareUserDto владельца; `expiresAt` и `sharedAt` — Share.expiresAt и createdAt. Folder.backupSource, tokenHash и encryptedToken не выдаются ([SHARED-WITH-ME](05-file-library.md#shared-with-me)) |
 | ShareUserDto | User.id/email/displayName владельца или получателя доступа |
+| Link operations | Создание: `fileId: FileId?` или `folderId: FolderId?` — ровно один, `expiresAt: Instant?`; изменение срока — как у Share operations ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage)) |
+| LinkShareDto | Share.id/expiresAt/createdAt; `resourceType`, `resourceId`, `resourceName` — как у ShareDto; `url: String?` — полный адрес ссылки из публичного адреса Server и расшифрованного секрета, отсутствует, если секрет не расшифровывается текущим ключом; `status` — как у ShareDto. tokenHash и encryptedToken не выдаются |
+| PublicResourceDto | Корень ссылки: `type: FILE\|FOLDER`, `id` и `name` объекта, `file: PublicFileDto?` — только у файла, `expiresAt` — Share.expiresAt ([ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read)) |
+| PublicFileDto | RemoteFile.id, `name` — originalName; `mimeType`, `size`, `fileType` из StoredObject. Checksum, FileMetadata, folder, пути хранения и владелец не выдаются |
+| PublicFolderDto | Folder.id/name; folderType, backupSource и parent не выдаются |
 | Test/message response | `message: String` — текст результата операции, без сохраняемой domain entity |
 
 В FileItemDto не раскрываются StoredObject.id/filePath/filename. Android допускает nullable поля FileItemDto и использует для успеха upload backup только id > 0; Library показывает originalFilename, fileType, size, capturedAt и uploadedAt, а ручная передача сравнивает с локальным файлом size и checksum. Даты остаются строками, metadata — `Map<String, Any?>?`. Это терпимость декодирования ответа, не изменение обязательности Server полей. Ответные свойства не становятся полями LocalMedia.

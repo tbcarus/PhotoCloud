@@ -742,6 +742,49 @@ API upload/copy не создаёт cross-owner references; ветка удал�
 
 Следующие операции доступны внешнему API-клиенту. Для них нужны действующий access и собственные файлы/папки; метаданные файла читаются и по USER-доступу ([ACCESS-READ](06-sharing-and-access.md#access-read)). Поиск чужого или отсутствующего объекта возвращает 404; общие правила доступа — [ACCESS-OWNER](06-sharing-and-access.md#access-owner). Ошибки ниже дополняют эту общую границу. Здесь не подразумевается существующий web UI. Правила имён, общее пространство файлов и папок, граница Camera и библиотеки и очередь структурных изменений — [Camera, обычная библиотека и имена](01-system-model.md#library-names).
 
+<a id="files-public-read"></a>
+
+## FILES-PUBLIC-READ — Чтение и скачивание по публичной ссылке
+
+**Status:** IMPLEMENTING
+
+**Availability:** SERVER_ONLY
+
+### Назначение
+
+Отдать содержимое публичной ссылки браузеру или API-клиенту без аккаунта.
+
+### Текущее поведение
+
+Каждый запрос проходит проверку [ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read).
+
+| Запрос | Ответ |
+| --- | --- |
+| `GET /s/{секрет}` | Ссылка на файл: байты файла. JPEG, PNG и WebP (по MIME, определённому при загрузке) — `Content-Disposition: inline`, остальные, в том числе HTML и SVG, — `attachment`; исходное имя в кодировке RFC 5987, как у [FILES-DOWNLOAD](05-file-library.md#files-download). Ссылка на папку: пока — JSON-описание корня, как ниже; HTML-страница папки — следующий этап |
+| `GET /api/v1/public/s/{секрет}` | [PublicResourceDto](01-system-model.md#api-projections) корня ссылки |
+| `GET …/folders/{id}/children` | Прямые подпапки папки поддерева, `PublicFolderDto[]`, по имени, как [FOLDERS-BROWSE](05-file-library.md#folders-browse) |
+| `GET …/files?folderId=` | Страница прямых файлов папки поддерева, `PublicFileDto`; page, size и sort — как [FILES-LIST](05-file-library.md#files-list) |
+| `GET …/files/{id}/download` | Байты как attachment |
+| `GET …/files/{id}/view` | Байты: безопасные изображения inline, остальное attachment |
+| `GET …/files/{id}/thumbnail` | Миниатюра по правилам [FILES-THUMBNAIL](05-file-library.md#files-thumbnail), с ETag; кеширование запрещено |
+
+Байты идут потоком без буфера тем же механизмом, что download владельца, включая Range/206 и HEAD. Оригинальные байты не меняются: EXIF, в том числе геоданные, остаются в файле.
+
+Все ответы публичных маршрутов, включая ошибки, содержат:
+- `Cache-Control: no-store`;
+- `Referrer-Policy: no-referrer`;
+- `X-Content-Type-Options: nosniff`;
+- `X-Robots-Tag: noindex, nofollow`;
+- `Content-Security-Policy: default-src 'none'; sandbox` — без скриптов и сторонних ресурсов. Исключение — JPEG, PNG и WebP, которые браузер показывает сам (inline): такое изображение исполнить нельзя, тип определён Server по содержимому и защищён nosniff, а строгая политика ломает встроенный просмотр (центрирование и увеличение). Скачиваемые HTML и SVG остаются под строгой политикой.
+
+### Ошибки и recovery
+
+404 «Not found» — недействительная ссылка или объект вне неё; 404 FILE_ITEM_NOT_FOUND — отсутствуют байты файла; миниатюры — 415, 422 и 503, как у владельца. Ответы ошибок — JSON и при `Accept: image/*`.
+
+### Текущие ограничения
+
+Веб-интерфейса папки и скачивания папки архивом нет. Ограничения частоты анонимных запросов нет.
+
 <a id="files-metadata"></a>
 
 ## FILES-METADATA — Метаданные удалённого файла
