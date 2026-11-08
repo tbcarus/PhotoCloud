@@ -607,7 +607,7 @@ FileMetadata относится к одному RemoteFile, копируется
 
 ## Share
 
-Разрешение на один объект владельца — папку или файл. Server проверяет по нему чтение USER-доступа ([ACCESS-READ](06-sharing-and-access.md#access-read)); API выдачи и отзыва, LINK-доступ по ссылке и Android UI отсутствуют ([SHARING-ABSENT](06-sharing-and-access.md#sharing-absent)).
+Разрешение на один объект владельца — папку или файл. Server проверяет по нему чтение USER-доступа ([ACCESS-READ](06-sharing-and-access.md#access-read)); владелец выдаёт и отзывает USER-доступ через API ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)), получатель видит и снимает свои доступы ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). LINK-доступ по ссылке и Android UI отсутствуют ([SHARING-ABSENT](06-sharing-and-access.md#sharing-absent)).
 
 **Компонентное представление:** Server — Share; Android его не использует.
 
@@ -630,7 +630,7 @@ FileMetadata относится к одному RemoteFile, копируется
 
 Задан ровно один из folder и fileItem. USER содержит recipient и не содержит tokenHash и encryptedToken, LINK — наоборот. На пару объект + получатель — не более одного USER; LINK на один объект может быть несколько. Эти правила, уникальность tokenHash и запрет разрешения самому себе проверяет БД; совпадение owner с владельцем объекта БД не проверяет.
 
-Удаление целевого объекта (в том числе вместе с папкой-предком), владельца или получателя удаляет Share. Отзыв будет удалять запись физически; истёкшая запись остаётся, отдельного поля состояния нет — оно вычисляется по expiresAt. Share не создаёт RemoteFile, StoredObject или байты получателя: разрешение на папку действует на её текущее поддерево Folder. Объектом разрешения не могут быть ROOT и AUTO_UPLOADS: проверка чтения не учитывает такие записи, запрет при создании появится вместе с API выдачи. CAMERA, обычные USER-папки и корни активных источников допустимы.
+Удаление целевого объекта (в том числе вместе с папкой-предком), владельца или получателя удаляет Share. Отзыв владельцем и отказ получателя удаляют запись физически; истёкшая запись остаётся, отдельного поля состояния нет — оно вычисляется по expiresAt. Share не создаёт RemoteFile, StoredObject или байты получателя: разрешение на папку действует на её текущее поддерево Folder. Объектом разрешения не могут быть ROOT и AUTO_UPLOADS: API выдачи их отклоняет, а проверка чтения не учитывает такие записи, если они появятся. CAMERA, обычные USER-папки и корни активных источников допустимы.
 
 <a id="share-kind"></a>
 
@@ -660,6 +660,10 @@ FileMetadata относится к одному RemoteFile, копируется
 | Folder operations | `parentId: FolderId?` для create; `targetParentId: FolderId` для move; `name: String` изменяет Folder.name; регистрация источника — `name: String` и `sourceUuid: UUID` — будущие Folder.name и Folder.backupSource; `backupSource: UUID?` в create и rename — UUID активного источника, от имени механизма резервирования которого выполняется операция |
 | File operations | `targetFolderId: FolderId` для move, `FolderId?` для copy; `originalName: String` для rename, `String?` для copy — новое RemoteFile.originalName; `backupSource: UUID?` в rename — как у Folder operations |
 | Upload | `file: Поток байтов` с filename и MIME; `folderId: FolderId?` задаёт папку либо default routing; `backupSource: UUID?` — как у Folder operations. Backup Android берёт filename и MIME из LocalMedia и передаёт ID CAMERA; ручная загрузка — имя и MIME документа Storage Access Framework и ID открытой папки ROOT или USER |
+| Share operations | Выдача: `fileId: FileId?` или `folderId: FolderId?` — ровно один, будущие Share.fileItem/folder; `emails: List<String>` — адреса получателей, определяющие Share.recipient; `expiresAt: Instant?` — Share.expiresAt. Изменение срока: `expiresAt: Instant?`, где явный null снимает срок, а отсутствие поля — ошибка ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)) |
+| ShareDto | Share.id/expiresAt/createdAt; `resourceType: FILE\|FOLDER`, `resourceId` и `resourceName` — id и имя Share.fileItem либо Share.folder; `recipient` — ShareUserDto получателя; `status: ACTIVE\|EXPIRED` — вычисляется по expiresAt в момент ответа и не хранится. tokenHash и encryptedToken не выдаются |
+| SharedResourceDto | `shareId` — Share.id; `resourceType`, `resourceId`, `name` — как у ShareDto; `file: FileItemDto?` — только у файла; `owner` — ShareUserDto владельца; `expiresAt` и `sharedAt` — Share.expiresAt и createdAt. Folder.backupSource, tokenHash и encryptedToken не выдаются ([SHARED-WITH-ME](05-file-library.md#shared-with-me)) |
+| ShareUserDto | User.id/email/displayName владельца или получателя доступа |
 | Test/message response | `message: String` — текст результата операции, без сохраняемой domain entity |
 
 В FileItemDto не раскрываются StoredObject.id/filePath/filename. Android допускает nullable поля FileItemDto и использует для успеха upload backup только id > 0; Library показывает originalFilename, fileType, size, capturedAt и uploadedAt, а ручная передача сравнивает с локальным файлом size и checksum. Даты остаются строками, metadata — `Map<String, Any?>?`. Это терпимость декодирования ответа, не изменение обязательности Server полей. Ответные свойства не становятся полями LocalMedia.
