@@ -14,7 +14,7 @@
 | `Integer`, `Number` | Целое число и число с возможной дробной частью |
 | `DateTime` | Дата и время; Server передаёт локальное время без offset, Android хранит время media/ошибок в epoch milliseconds |
 | `Instant` | Момент времени, независимый от часового пояса; Server хранит его со смещением и сравнивает как точку на шкале времени |
-| `UserId`, `FolderId`, `FileId`, `StoredObjectId`, `MetadataId`, `SessionId`, `EmailRequestId`, `ShareId` | Идентификаторы записей на конкретном Server; одинаковые числа на разных Server не связывают объекты |
+| `UserId`, `FolderId`, `FileId`, `StoredObjectId`, `MetadataId`, `SessionId`, `EmailRequestId`, `ShareId`, `NotificationId` | Идентификаторы записей на конкретном Server; одинаковые числа на разных Server не связывают объекты |
 | `MediaId` | Положительный MediaStore ID в локальном индексе установки; отдельного volume/device namespace нет |
 | `Checksum` | SHA-256 содержимого конкретного чтения: 64 шестнадцатеричных символа в нижнем регистре |
 | `UUID` | Идентификатор, создаваемый клиентом; Server принимает любой корректный UUID и сохраняет его без изменения |
@@ -48,7 +48,7 @@
 
 ### Связи
 
-User владеет Folder, RemoteFile, StoredObject, EmailRequest и выданными Share и может быть получателем Share. RefreshSession связана с ним по email, без прямой ссылки на User. Текущие роли пользователя определяют полномочия защищённого запроса; влияние enabled/banned на уже выданные токены описывает [AUTH-BLOCK](02-account-and-auth.md#auth-block).
+User владеет Folder, RemoteFile, StoredObject, EmailRequest и выданными Share и может быть получателем Share и [Notification](01-system-model.md#notification). RefreshSession связана с ним по email, без прямой ссылки на User. Текущие роли пользователя определяют полномочия защищённого запроса; влияние enabled/banned на уже выданные токены описывает [AUTH-BLOCK](02-account-and-auth.md#auth-block).
 
 <a id="role"></a>
 
@@ -641,6 +641,50 @@ FileMetadata относится к одному RemoteFile, копируется
 | `USER` | Разрешение зарегистрированному получателю |
 | `LINK` | Разрешение по секрету ссылки без входа; только чтение |
 
+<a id="notification"></a>
+
+## Notification
+
+Сохранённое сообщение одному пользователю о событии на Server. Server создаёт уведомление о новом USER-доступе ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)); получатель читает уведомления и отмечает прочтение через API ([NOTIFICATIONS-READ](06-sharing-and-access.md#notifications-read)). Доставки push и email нет.
+
+**Компонентное представление:** Server — Notification; Android его пока не использует.
+
+### Поля
+
+| Поле | Системный тип | Значение |
+| --- | --- | --- |
+| `id` | NotificationId | Идентификатор уведомления |
+| `recipient` | User | Получатель; единственный пользователь, которому уведомление видно |
+| `type` | [NotificationType](01-system-model.md#notification-type) | Вид события |
+| `title` | String | Заголовок, сформированный Server |
+| `body` | String | Текст, сформированный Server |
+| `targetType` | [NotificationTargetType](01-system-model.md#notification-target-type)? | Вид объекта события |
+| `targetId` | FileId? или FolderId? | ID объекта события; FileId при targetType=FILE, FolderId при FOLDER |
+| `createdAt` | Instant | Время создания по часам Server |
+| `readAt` | Instant? | Время первого прочтения; отсутствует — не прочитано |
+
+### Связи и правила
+
+targetType и targetId заданы оба или отсутствуют оба; у SHARE_GRANTED они обязательны. Эти правила проверяет БД. title и body — снимок на момент события: переименование и удаление объекта их не меняют, секреты, токены и пути хранения в них не входят. targetId — только указатель для навигации: он не ссылается на объект ограничением БД и не даёт права доступа, чтение объекта по-прежнему проверяет [ACCESS-READ](06-sharing-and-access.md#access-read). Удаление объекта, отзыв, истечение или отказ от Share уведомление не удаляют; удаление получателя удаляет его уведомления, как и другие данные пользователя. readAt устанавливается один раз и затем не меняется.
+
+<a id="notification-type"></a>
+
+## NotificationType
+
+Хранится строковым именем.
+
+| Значение | Смысл |
+| --- | --- |
+| `SHARE_GRANTED` | Получателю создан новый USER-доступ к файлу или папке |
+| `BACKUP_FAILED` | Зарезервировано; Server такие уведомления не создаёт |
+| `SYSTEM_MESSAGE` | Зарезервировано; Server такие уведомления не создаёт |
+
+<a id="notification-target-type"></a>
+
+## NotificationTargetType
+
+`FILE`, `FOLDER` — вид объекта, на который указывает Notification.targetId. Хранится строковым именем.
+
 <a id="api-projections"></a>
 
 ## Представления операций
@@ -666,6 +710,8 @@ FileMetadata относится к одному RemoteFile, копируется
 | ShareUserDto | User.id/email/displayName владельца или получателя доступа |
 | Link operations | Создание: `fileId: FileId?` или `folderId: FolderId?` — ровно один, `expiresAt: Instant?`; изменение срока — как у Share operations ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage)) |
 | LinkShareDto | Share.id/expiresAt/createdAt; `resourceType`, `resourceId`, `resourceName` — как у ShareDto; `url: String?` — полный адрес ссылки из публичного адреса Server и расшифрованного секрета, отсутствует, если секрет не расшифровывается текущим ключом; `status` — как у ShareDto. tokenHash и encryptedToken не выдаются |
+| NotificationDto | Notification.id/type/title/body/targetType/targetId/createdAt/readAt с теми же типами; recipient не выдаётся ([NOTIFICATIONS-READ](06-sharing-and-access.md#notifications-read)) |
+| Unread notification count | `count: Integer` — число Notification текущего пользователя без readAt |
 | PublicResourceDto | Корень ссылки: `type: FILE\|FOLDER`, `id` и `name` объекта, `file: PublicFileDto?` — только у файла, `expiresAt` — Share.expiresAt ([ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read)) |
 | PublicFileDto | RemoteFile.id, `name` — originalName; `mimeType`, `size`, `fileType` из StoredObject. Checksum, FileMetadata, folder, пути хранения и владелец не выдаются |
 | PublicFolderDto | Folder.id/name; folderType, backupSource и parent не выдаются |

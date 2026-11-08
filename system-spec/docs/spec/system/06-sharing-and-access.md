@@ -1,8 +1,8 @@
 # Sharing и доступ
 
-Изменять файлы и папки может только их владелец. Читать чужие файлы и папки Server позволяет по действующему USER-разрешению [Share](01-system-model.md#share). Владелец выдаёт, изменяет и отзывает такие разрешения, в том числе на Android ([поделиться](05-file-library.md#files-browse-sharing)); получатель видит их в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Владелец создаёт публичные ссылки, в том числе на Android ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage), [поделиться](05-file-library.md#files-browse-sharing)); по ним файл или дерево папки читаются без входа ([ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read)), папку браузер показывает простой страницей просмотра ([FILES-PUBLIC-READ](05-file-library.md#files-public-read)).
+Изменять файлы и папки может только их владелец. Читать чужие файлы и папки Server позволяет по действующему USER-разрешению [Share](01-system-model.md#share). Владелец выдаёт, изменяет и отзывает такие разрешения, в том числе на Android ([поделиться](05-file-library.md#files-browse-sharing)); получатель видит их в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Владелец создаёт публичные ссылки, в том числе на Android ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage), [поделиться](05-file-library.md#files-browse-sharing)); по ним файл или дерево папки читаются без входа ([ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read)), папку браузер показывает простой страницей просмотра ([FILES-PUBLIC-READ](05-file-library.md#files-public-read)). О новом USER-доступе Server сохраняет уведомление получателю ([NOTIFICATIONS-READ](06-sharing-and-access.md#notifications-read)).
 
-Используемая модель: [User](01-system-model.md#user), [Folder](01-system-model.md#folder), [RemoteFile](01-system-model.md#remote-file), [StoredObject](01-system-model.md#stored-object) и [Share](01-system-model.md#share).
+Используемая модель: [User](01-system-model.md#user), [Folder](01-system-model.md#folder), [RemoteFile](01-system-model.md#remote-file), [StoredObject](01-system-model.md#stored-object), [Share](01-system-model.md#share) и [Notification](01-system-model.md#notification).
 
 <a id="access-owner"></a>
 
@@ -101,13 +101,16 @@
 4. Каждый адрес ищется по тем же правилам, что при входе: email сравнивается без учёта регистра. Адреса одного аккаунта считаются одним получателем.
 5. Если хотя бы один адрес не подходит, не создаётся и не меняется ни один доступ. Не подходят адрес без аккаунта, неактивный или заблокированный аккаунт и собственный адрес владельца.
 6. Для каждого получателя существующий USER-доступ к этому ресурсу получает новый expiresAt, в том числе истёкший доступ продлевается; иначе создаётся новый Share. Дубликат не появляется: на пару ресурс + получатель остаётся одна запись.
-7. Ответ — список ShareDto по одному на получателя в порядке первого упоминания адресов.
+7. Для каждого нового Share в той же транзакции создаётся [Notification](01-system-model.md#notification) SHARE_GRANTED его получателю: targetType FILE или FOLDER и targetId ресурса, заголовок «Предоставлен доступ», текст «Вам предоставлен доступ к файлу „{имя}“» или «…к папке „{имя}“» с именем ресурса на момент выдачи. Обновление существующего, в том числе истёкшего, Share уведомления не создаёт: при групповой выдаче уведомление получают только новые получатели. Отклонённая или откаченная операция не оставляет ни Share, ни уведомлений; отдельной асинхронной доставки нет.
+8. Ответ — список ShareDto по одному на получателя в порядке первого упоминания адресов.
 
 **Список** (`GET /api/v1/shares`): страница ShareDto всех USER-доступов, выданных текущим пользователем, от новых к старым. Можно указать fileId или folderId собственного ресурса. Истёкшие доступы остаются в списке со статусом EXPIRED.
 
 **Изменение срока** (`PATCH /api/v1/shares/{id}`): expiresAt — будущий момент, а явный null делает доступ бессрочным. Истёкший доступ продлевается так же.
 
 **Отзыв**: `DELETE /api/v1/shares/{id}` удаляет один доступ, `DELETE /api/v1/shares/users` с fileId или folderId — все USER-доступы к собственному ресурсу. Запись Share удаляется физически, отсутствие доступов у ресурса — тоже успех.
+
+Изменение срока, отзыв, истечение и отказ получателя уведомлений не создают и ранее созданные не удаляют. После отзыва или отказа записи Share нет, поэтому следующая выдача тому же получателю создаёт новый Share и новое уведомление.
 
 Изменения сразу учитываются проверкой чтения ([ACCESS-READ](06-sharing-and-access.md#access-read)): фоновой обработки сроков нет, наступивший expiresAt закрывает доступ при следующем запросе. Файлы и RemoteFile не копируются. Срок передаётся в ISO-8601 со смещением, хранится и возвращается как момент UTC.
 
@@ -127,7 +130,7 @@
 
 ### Текущие ограничения
 
-Верхний предел числа адресов в одном запросе не задан. Пользовательского поиска получателей и автодополнения нет: нужен точный email. Уведомлений получателю нет.
+Верхний предел числа адресов в одном запросе не задан. Пользовательского поиска получателей и автодополнения нет: нужен точный email. Уведомление о выдаче сохраняется на Server, но Android его пока не показывает; push и email нет ([NOTIFICATIONS-READ](06-sharing-and-access.md#notifications-read)).
 
 <a id="sharing-link-manage"></a>
 
@@ -197,6 +200,42 @@
 
 Ограничения частоты анонимных запросов нет. Перебор секрета практически исключён (256 бит). Генерацию миниатюр ограничивает общий лимит одновременных генераций ([FILES-THUMBNAIL](05-file-library.md#files-thumbnail)). Журналы reverse proxy и балансировщика видят полный URL с секретом и настраиваются отдельно ([SYSTEM-DIAGNOSTICS](07-system-rules-and-recovery.md#system-diagnostics)).
 
+<a id="notifications-read"></a>
+
+## NOTIFICATIONS-READ — Получение и прочтение уведомлений
+
+**Status:** IMPLEMENTING
+
+**Availability:** SERVER_ONLY
+
+### Назначение
+
+Сообщить пользователю о событиях, касающихся его, — сейчас о новом USER-доступе — и дать отмечать прочитанное.
+
+### Текущее поведение
+
+Пользователь выполняет запрос `/api/v1/notifications` с действующим access ([AUTH-ACCESS](02-account-and-auth.md#auth-access)). Уведомления создаёт Server: сейчас только SHARE_GRANTED при выдаче нового USER-доступа ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)).
+
+**Список** (`GET`, page и size как у [FILES-LIST](05-file-library.md#files-list)): страница [NotificationDto](01-system-model.md#api-projections) текущего пользователя от новых к старым по createdAt, при равном времени — по убыванию id. Уведомление показывается независимо от того, существует ли ещё объект и действует ли Share.
+
+**Количество непрочитанных** (`GET /unread-count`): число уведомлений текущего пользователя без readAt; при отсутствии уведомлений — 0.
+
+**Прочтение одного** (`PATCH /{id}/read`): readAt получает текущее время Server; уже прочитанное сохраняет исходный readAt. Ответ — NotificationDto. Повтор не меняет данные.
+
+**Прочтение всех** (`PATCH /read-all`): одной операцией readAt получают все непрочитанные уведомления текущего пользователя; у прочитанных readAt не меняется. Ответ — 204, повтор не меняет данные.
+
+targetType и targetId — указатель для будущего перехода к объекту, а не право: чтение объекта проверяет [ACCESS-READ](06-sharing-and-access.md#access-read), и после удаления объекта или отзыва Share оно даёт 404, хотя уведомление остаётся.
+
+### Ошибки и recovery
+
+- 401 — запрос без действующего access.
+- 404 — уведомление отсутствует или принадлежит другому пользователю: чужие ID неотличимы от отсутствующих, ни содержимое, ни состояние чужого уведомления не меняются.
+- 400 — отрицательный page или нулевой size.
+
+### Текущие ограничения
+
+Android уведомления не запрашивает и не показывает. Push, email, WebSocket и фоновой доставки нет; уведомления об изменении срока, отзыве и истечении доступа, о новых файлах в общей папке и о публичных ссылках не создаются. Удаления уведомлений пользователем и срока их хранения нет. Верхний предел size не задан.
+
 <a id="sharing-absent"></a>
 
 ## SHARING-ABSENT — Уведомления sharing и веб-интерфейс владельца
@@ -211,7 +250,7 @@
 
 ### Текущее поведение
 
-USER-доступы выдаются и управляются в Android и через API ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)), полученные показываются в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Уведомлений получателю о выдаче, изменении и отзыве нет, поиска пользователей и автодополнения адресов нет. Публичные ссылки создаются и управляются в Android и через API ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage)); получатель открывает их в браузере ([ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read), [FILES-PUBLIC-READ](05-file-library.md#files-public-read)). Веб-интерфейса владельца нет; уведомлений о создании, изменении и отзыве ссылок нет. Обычные upload и copy не создают Share и общих ссылок между владельцами.
+USER-доступы выдаются и управляются в Android и через API ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)), полученные показываются в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). О новом доступе Server сохраняет уведомление, доступное через API ([NOTIFICATIONS-READ](06-sharing-and-access.md#notifications-read)); показа уведомлений в Android, push, email и уведомлений об изменении и отзыве нет, поиска пользователей и автодополнения адресов нет. Публичные ссылки создаются и управляются в Android и через API ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage)); получатель открывает их в браузере ([ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read), [FILES-PUBLIC-READ](05-file-library.md#files-public-read)). Веб-интерфейса владельца нет; уведомлений о создании, изменении и отзыве ссылок нет. Обычные upload и copy не создают Share и общих ссылок между владельцами.
 
 
 ### Текущие ограничения
