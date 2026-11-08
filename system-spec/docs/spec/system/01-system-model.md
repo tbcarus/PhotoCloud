@@ -607,7 +607,7 @@ FileMetadata относится к одному RemoteFile, копируется
 
 ## Share
 
-Разрешение на один объект владельца — папку или файл. Server проверяет по нему чтение USER-доступа ([ACCESS-READ](06-sharing-and-access.md#access-read)); владелец выдаёт и отзывает USER-доступ через API ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)), получатель видит и снимает свои доступы ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Владелец создаёт LINK-доступ через API ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage)), чтение по нему без входа — [ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read); веб- и Android UI ссылок нет ([SHARING-ABSENT](06-sharing-and-access.md#sharing-absent)).
+Разрешение на один объект владельца — папку или файл. Server проверяет по нему чтение USER-доступа ([ACCESS-READ](06-sharing-and-access.md#access-read)); владелец выдаёт и отзывает USER-доступ через API ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)), получатель видит и снимает свои доступы ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Владелец создаёт LINK-доступ через API ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage)), чтение по нему без входа — [ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read); папку по ссылке браузер показывает страницей просмотра ([FILES-PUBLIC-READ](05-file-library.md#files-public-read)), Android UI ссылок нет ([SHARING-ABSENT](06-sharing-and-access.md#sharing-absent)).
 
 **Компонентное представление:** Server — Share; Android его не использует.
 
