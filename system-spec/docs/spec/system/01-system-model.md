@@ -647,7 +647,7 @@ FileMetadata относится к одному RemoteFile, копируется
 
 Сохранённое сообщение одному пользователю о событии на Server. Server создаёт уведомление о новом USER-доступе ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)); получатель читает уведомления и отмечает прочтение через API ([NOTIFICATIONS-READ](06-sharing-and-access.md#notifications-read)). Доставки push и email нет.
 
-**Компонентное представление:** Server — Notification; Android его пока не использует.
+**Компонентное представление:** Server — Notification; Android — NotificationDto только в памяти процесса, без Room и настроек ([NOTIFICATIONS-READ](06-sharing-and-access.md#notifications-read-android)).
 
 ### Поля
 
