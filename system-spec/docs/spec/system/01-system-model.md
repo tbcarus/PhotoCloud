@@ -645,9 +645,9 @@ FileMetadata относится к одному RemoteFile, копируется
 
 ## Notification
 
-Сохранённое сообщение одному пользователю о событии на Server. Server создаёт уведомление о новом USER-доступе ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)); получатель читает уведомления и отмечает прочтение через API ([NOTIFICATIONS-READ](06-sharing-and-access.md#notifications-read)). Доставки push и email нет.
+Сохранённое сообщение одному пользователю о событии на Server. Server создаёт уведомление о новом USER-доступе ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)); получатель читает уведомления и отмечает прочтение в Android и через API ([NOTIFICATIONS-READ](08-notifications.md#notifications-read)). Правила подсистемы — [уведомления](08-notifications.md#notifications-rules). Доставки push и email нет.
 
-**Компонентное представление:** Server — Notification; Android — NotificationDto только в памяти процесса, без Room и настроек ([NOTIFICATIONS-READ](06-sharing-and-access.md#notifications-read-android)).
+**Компонентное представление:** Server — Notification; Android — NotificationDto только в памяти процесса, без Room и настроек ([NOTIFICATIONS-READ](08-notifications.md#notifications-read-android)).
 
 ### Поля
 
@@ -710,7 +710,7 @@ targetType и targetId заданы оба или отсутствуют оба;
 | ShareUserDto | User.id/email/displayName владельца или получателя доступа |
 | Link operations | Создание: `fileId: FileId?` или `folderId: FolderId?` — ровно один, `expiresAt: Instant?`; изменение срока — как у Share operations ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage)) |
 | LinkShareDto | Share.id/expiresAt/createdAt; `resourceType`, `resourceId`, `resourceName` — как у ShareDto; `url: String?` — полный адрес ссылки из публичного адреса Server и расшифрованного секрета, отсутствует, если секрет не расшифровывается текущим ключом; `status` — как у ShareDto. tokenHash и encryptedToken не выдаются |
-| NotificationDto | Notification.id/type/title/body/targetType/targetId/createdAt/readAt с теми же типами; recipient не выдаётся ([NOTIFICATIONS-READ](06-sharing-and-access.md#notifications-read)) |
+| NotificationDto | Notification.id/type/title/body/targetType/targetId/createdAt/readAt с теми же типами; recipient не выдаётся ([NOTIFICATIONS-READ](08-notifications.md#notifications-read)) |
 | Unread notification count | `count: Integer` — число Notification текущего пользователя без readAt |
 | PublicResourceDto | Корень ссылки: `type: FILE\|FOLDER`, `id` и `name` объекта, `file: PublicFileDto?` — только у файла, `expiresAt` — Share.expiresAt ([ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read)) |
 | PublicFileDto | RemoteFile.id, `name` — originalName; `mimeType`, `size`, `fileType` из StoredObject. Checksum, FileMetadata, folder, пути хранения и владелец не выдаются |
