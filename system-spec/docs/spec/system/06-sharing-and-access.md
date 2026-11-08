@@ -1,6 +1,6 @@
 # Sharing и доступ
 
-Изменять файлы и папки может только их владелец. Читать чужие файлы и папки Server позволяет по действующему USER-разрешению [Share](01-system-model.md#share). Владелец выдаёт, изменяет и отзывает такие разрешения, в том числе на Android ([поделиться](05-file-library.md#files-browse-sharing)); получатель видит их в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Через Server API владелец создаёт публичные ссылки ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage)), по которым файл или дерево папки читаются без входа ([ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read)); папку по ссылке браузер показывает простой страницей просмотра ([FILES-PUBLIC-READ](05-file-library.md#files-public-read)). Android UI ссылок нет.
+Изменять файлы и папки может только их владелец. Читать чужие файлы и папки Server позволяет по действующему USER-разрешению [Share](01-system-model.md#share). Владелец выдаёт, изменяет и отзывает такие разрешения, в том числе на Android ([поделиться](05-file-library.md#files-browse-sharing)); получатель видит их в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Владелец создаёт публичные ссылки, в том числе на Android ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage), [поделиться](05-file-library.md#files-browse-sharing)); по ним файл или дерево папки читаются без входа ([ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read)), папку браузер показывает простой страницей просмотра ([FILES-PUBLIC-READ](05-file-library.md#files-public-read)).
 
 Используемая модель: [User](01-system-model.md#user), [Folder](01-system-model.md#folder), [RemoteFile](01-system-model.md#remote-file), [StoredObject](01-system-model.md#stored-object) и [Share](01-system-model.md#share).
 
@@ -135,7 +135,7 @@
 
 **Status:** IMPLEMENTING
 
-**Availability:** SERVER_ONLY
+**Availability:** END_TO_END
 
 ### Назначение
 
@@ -143,7 +143,7 @@
 
 ### Текущее поведение
 
-Владелец выполняет запросы `/api/v1/shares/links` с действующим access ([AUTH-ACCESS](02-account-and-auth.md#auth-access)).
+Владелец выполняет запросы `/api/v1/shares/links` с действующим access ([AUTH-ACCESS](02-account-and-auth.md#auth-access)). Android делает это из режима «По ссылке» окна «Поделиться» и раздела «Предоставлено мной» ([поделиться](05-file-library.md#files-browse-sharing)): копирует URL из ответа и передаёт его через системный выбор приложения.
 
 **Создание** (`POST`): ровно один из fileId и folderId, необязательный expiresAt (null — бессрочно, иначе только будущий момент).
 1. Под той же блокировкой дерева владельца, что у выдачи USER-доступа, Server ищет ресурс среди собственных объектов. ROOT и AUTO_UPLOADS отклоняются; файлы, CAMERA, USER-папки и корни активных источников допустимы.
@@ -167,7 +167,7 @@
 
 ### Текущие ограничения
 
-Ключ шифрования задаётся внешней конфигурацией (Base64 32 байт) и должен сохраняться вместе с резервной копией конфигурации Server. С другим ключом выданные ссылки продолжают работать, но их URL повторно не получить: в ответе url отсутствует. Ротации ключа и отдельного хранилища секретов нет. Внешний адрес — только HTTPS; HTTP допускается лишь для localhost. Неверно заданные ключ или адрес останавливают запуск Server. Android UI ссылок нет ([SHARING-ABSENT](06-sharing-and-access.md#sharing-absent)); создаёт и отзывает ссылки только API.
+Ключ шифрования задаётся внешней конфигурацией (Base64 32 байт) и должен сохраняться вместе с резервной копией конфигурации Server. С другим ключом выданные ссылки продолжают работать, но их URL повторно не получить: в ответе url отсутствует. Ротации ключа и отдельного хранилища секретов нет. Внешний адрес — только HTTPS; HTTP допускается лишь для localhost. Неверно заданные ключ или адрес останавливают запуск Server. Android показывает такую ссылку без адреса и позволяет её продлить или отозвать. Пароля, подтверждения получателем и ограничения числа скачиваний нет; EXIF оригиналов не удаляется.
 
 <a id="access-link-read"></a>
 
@@ -199,7 +199,7 @@
 
 <a id="sharing-absent"></a>
 
-## SHARING-ABSENT — Интерфейс публичных ссылок и уведомления sharing
+## SHARING-ABSENT — Уведомления sharing и веб-интерфейс владельца
 
 **Status:** AS-IS
 
@@ -211,9 +211,8 @@
 
 ### Текущее поведение
 
-USER-доступы выдаются и управляются в Android и через API ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)), полученные показываются в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Уведомлений получателю о выдаче, изменении и отзыве нет, поиска пользователей и автодополнения адресов нет. Публичные ссылки создаются и управляются только через Server API ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage)); получатель открывает их в браузере ([ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read), [FILES-PUBLIC-READ](05-file-library.md#files-public-read)). В Android нет UI создания и управления ссылками, веб-интерфейса владельца нет. Обычные upload и copy не создают Share и общих ссылок между владельцами.
+USER-доступы выдаются и управляются в Android и через API ([SHARING-USER-MANAGE](06-sharing-and-access.md#sharing-user-manage)), полученные показываются в «Доступно мне» ([SHARED-WITH-ME](05-file-library.md#shared-with-me)). Уведомлений получателю о выдаче, изменении и отзыве нет, поиска пользователей и автодополнения адресов нет. Публичные ссылки создаются и управляются в Android и через API ([SHARING-LINK-MANAGE](06-sharing-and-access.md#sharing-link-manage)); получатель открывает их в браузере ([ACCESS-LINK-READ](06-sharing-and-access.md#access-link-read), [FILES-PUBLIC-READ](05-file-library.md#files-public-read)). Веб-интерфейса владельца нет; уведомлений о создании, изменении и отзыве ссылок нет. Обычные upload и copy не создают Share и общих ссылок между владельцами.
 
-Пользователь Android не может поделиться по ссылке.
 
 ### Текущие ограничения
 
