@@ -215,7 +215,7 @@ Checksum, проверка открытия перед upload и сама отп
 | `checksum` | Checksum? | SHA-256 потока, прочитанного Android по правилу [DeviceMedia](01-system-model.md#device-media): оригинала или доступной версии; после discovery/изменения отсутствует |
 | `status` | SyncState | Сохранённое состояние обработки; исходно PENDING |
 | `failureReason` | FailureReason? | Классификация последней сохраняемой ошибки файла |
-| `retryCount` | Integer | Число накопленных markFailed, исходно 0; не число HTTP/worker попыток |
+| `retryCount` | Integer | Число накопленных markFailed, исходно 0; не число HTTP/worker попыток. Обнуляется успешным hash/upload, изменением содержимого и ручным повтором FAILED ([BACKUP-RETRY](04-backup-and-sync.md#backup-retry)) |
 | `lastFailureAt` | DateTime? | Время последнего markFailed по часам устройства; определяет cooldown |
 
 ### Связи и границы
