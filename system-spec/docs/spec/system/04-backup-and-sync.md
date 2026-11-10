@@ -1,6 +1,6 @@
 # Backup и синхронизация
 
-Текущий backup копирует доступные фотографии с устройства на Server. Android хранит локальную очередь и вывод о результате; удалённую библиотеку он не зеркалит. Ниже описан полный путь фотографии, включая условия и восстановление после ошибок. Автоматическое резервирование выбранных Android-папок только начинается: Server регистрирует их корневые папки ([BACKUP-SOURCE-REGISTER](04-backup-and-sync.md#backup-source-register)).
+Текущий backup копирует доступные фотографии с устройства на Server. Android хранит локальную очередь и вывод о результате; удалённую библиотеку он не зеркалит. Ниже описан полный путь фотографии, включая условия и восстановление после ошибок. Автоматическое резервирование выбранных Android-папок включает подключение и регистрацию источника, обход и передачу файлов, архивирование изменённых версий и отключение ([BACKUP-SOURCE-CONNECT](04-backup-and-sync.md#backup-source-connect), [BACKUP-SOURCE-REGISTER](04-backup-and-sync.md#backup-source-register), [BACKUP-SOURCE-SYNC](04-backup-and-sync.md#backup-source-sync), [BACKUP-SOURCE-ARCHIVE](04-backup-and-sync.md#backup-source-archive), [BACKUP-SOURCE-DISABLE](04-backup-and-sync.md#backup-source-disable)).
 
 Используемая модель: [DeviceMedia](01-system-model.md#device-media), [LocalMedia](01-system-model.md#local-media), [SyncState](01-system-model.md#sync-state), [FailureReason](01-system-model.md#failure-reason) и [RemoteFile](01-system-model.md#remote-file).
 
@@ -162,7 +162,7 @@ CHECKSUM_READY означает завершение локальной обра
 
 ### Текущие ограничения
 
-Локальные подпапки DCIM не превращаются в дерево папок Server; ID между прогонами не хранится. Клиенту нужен Server с `POST /api/v1/folders/camera`: прежняя сборка отвечает на этот запрос 401, после чего Android очищает пару и останавливает фон до нового входа, поэтому Server обновляется первым.
+Локальные подпапки DCIM не превращаются в дерево папок Server; ID между прогонами не хранится. Клиенту нужен Server с `POST /api/v1/folders/camera`, поэтому Server обновляется первым. 401 от несовместимого Server сам по себе не очищает пару: Android применяет [AUTH-REFRESH](02-account-and-auth.md#auth-refresh). Пара очищается только при окончательном отказе refresh — `401 INVALID_REFRESH_TOKEN` или `403 REFRESH_TOKEN_REVOKED`, если она не сменилась за время запроса. Повторный 401 исходного запроса пару не очищает; получение CAMERA завершается ошибкой с повтором Загрузчика. После очистки пары следующий прогон останавливает фон до нового входа.
 
 ### Нерешённый вопрос
 
@@ -235,7 +235,7 @@ Existing не проверяет физические байты и не рез�
 - При проверке открытия отсутствие потока/файла → FAILED FILE_NOT_FOUND, отказ доступа → FAILED PERMISSION.
 - Upload 400/409/413 → FAILED HTTP_400/409/413; следующий файл обрабатывается. С явным ID CAMERA 400 остаётся только для пустого файла и некорректного запроса; 409 в CAMERA не возникает, а обычный duplicate возвращает 200.
 - IOException при передаче (обрыв соединения, потеря ответа, тайм-аут, включая временный отказ refresh) → одна немедленная повторная отправка того же файла с чтением исходного потока заново, если Worker не остановлен и бюджет прогона не исчерпан. Успешный повтор обрабатывается как обычный ответ, в том числе duplicate. Повторный IOException или повтор, не начатый из-за бюджета, → PENDING_UPLOAD, остановка upload и запрос retry; остановка Worker прерывает прогон без повтора.
-- Прочие HTTP, в том числе окончательный 401/403/404/429/5xx, или 2xx без id>0 → PENDING_UPLOAD, остановка upload и запрос retry; немедленно HTTP-ответы не повторяются. Окончательный 401 после отказа refresh очищает пару, и следующий прогон останавливает фон ([BACKUP-BACKGROUND](04-backup-and-sync.md#backup-background)).
+- Прочие HTTP, в том числе окончательный 401/403/404/429/5xx, или 2xx без id>0 → PENDING_UPLOAD, остановка upload и запрос retry; немедленно HTTP-ответы не повторяются. Сам 401 upload пару не очищает. Только окончательный отказ refresh (`401 INVALID_REFRESH_TOKEN` или `403 REFRESH_TOKEN_REVOKED`) очищает отвергнутую пару, если она ещё текущая ([AUTH-REFRESH](02-account-and-auth.md#auth-refresh)); тогда следующий прогон останавливает фон ([BACKUP-BACKGROUND](04-backup-and-sync.md#backup-background)).
 - Иное исключение после начала отправки может оставить UPLOADING до recovery.
 - Все переходы стадии (FAILED, SYNCED, возврат в PENDING_UPLOAD) применяются только к той же версии строки. Если Поставщик сбросил строку во время отправки, ответ её не меняет: новая версия проходит hash, pre-check и upload заново, а принятая копия прежней версии остаётся на Server.
 - Нет полного доступа к изображениям → Загрузчик завершается до pre-check без изменения очереди и без retry; строки не переходят в FAILED PERMISSION.
