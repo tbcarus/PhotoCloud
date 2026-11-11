@@ -106,7 +106,7 @@ EmailRequest относится к одному User; у пользовател�
 
 ### Связи
 
-Login создаёт новую RefreshSession для User. Android сохраняет её token вместе с access. Refresh, если до exp остаётся больше порога замены, запись не меняет и срок не продлевает. Иначе он в одной транзакции отзывает её (revoked, revokedAt) и создаёт новую RefreshSession того же пользователя с полным сроком; связь между отозванной и новой записью не хранится. Истечение срока само не удаляет запись. Уникальность сохранённого token не установлена. Операции — [AUTH-LOGIN](02-account-and-auth.md#auth-login), [AUTH-REFRESH](02-account-and-auth.md#auth-refresh), [AUTH-LOGOUT](02-account-and-auth.md#auth-logout).
+Login создаёт новую RefreshSession для User. Android сохраняет её token вместе с access. Успешный reset пароля массово отзывает все RefreshSession пользователя ([AUTH-RESET](02-account-and-auth.md#auth-reset)). Refresh, если до exp остаётся больше порога замены, запись не меняет и срок не продлевает. Иначе он в одной транзакции отзывает её (revoked, revokedAt) и создаёт новую RefreshSession того же пользователя с полным сроком; связь между отозванной и новой записью не хранится. Истечение срока само не удаляет запись. Уникальность сохранённого token не установлена. Операции — [AUTH-LOGIN](02-account-and-auth.md#auth-login), [AUTH-REFRESH](02-account-and-auth.md#auth-refresh), [AUTH-LOGOUT](02-account-and-auth.md#auth-logout).
 
 <a id="access-token"></a>
 
