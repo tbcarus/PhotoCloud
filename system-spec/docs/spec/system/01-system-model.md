@@ -377,13 +377,57 @@ LocalMedia ссылается на DeviceMedia через mediaStoreId/uri. serv
 
 HASHING/UPLOADING могут сохраняться без работающей задачи. Из любого состояния возможен сброс при изменении size/lastModified или удаление строки при исчезновении из полного снимка. PENDING, HASHING и переход в CHECKSUM_READY или локальный FAILED выполняет Поставщик; переходы из CHECKSUM_READY, PENDING_UPLOAD и UPLOADING — Загрузчик. Результаты hash, pre-check и upload применяются условно: только к строке в ожидаемом состоянии с прежними checksum, size и lastModified. Это не глобальная атомарная машина состояний: безусловные записи scan и restore могут нарушать обычные сочетания status/checksum/ID и сохранять сведения об ошибке при status, отличном от FAILED.
 
+Ручная сверка ([CameraCheck](01-system-model.md#camera-check)) до решения пользователя меняет SyncState только одним условным переходом CHECKSUM_READY → SYNCED по ответу existing; подтверждение загрузки переводит отсутствующие SYNCED той же версии в CHECKSUM_READY, а FAILED — по правилу ручного повтора в PENDING ([BACKUP-CAMERA-CHECK](04-backup-and-sync.md#backup-camera-check)).
+
 <a id="synced"></a>
 
 ### Значение SYNCED
 
 SYNCED — сохранённый вывод Android после logical existing либо upload 2xx с положительным FileId. Existing меняет только status: serverFileId остаётся прежним, в обычном новом пути — null. Upload при обычном завершении записывает ID.
 
-Состояние не гарантирует читаемость и неизменность физических байтов Server, равенство local checksum отправленному содержимому, актуальность remote ID/папки, наличие оригинала сейчас или backup в текущем account/host. Обычный SYNCED повторно с Server не сверяется. Успешный прогон Worker не означает, что все строки SYNCED. Нерешённый продуктовый смысл подтверждения остаётся рядом с [BACKUP-NEW](04-backup-and-sync.md#backup-new).
+Состояние не гарантирует читаемость и неизменность физических байтов Server, равенство local checksum отправленному содержимому, актуальность remote ID/папки, наличие оригинала сейчас или backup в текущем account/host. Обычный SYNCED повторно с Server не сверяется; это делает только ручная сверка ([BACKUP-CAMERA-CHECK](04-backup-and-sync.md#backup-camera-check)), и до подтверждения пользователя SYNCED не понижает. Успешный прогон Worker не означает, что все строки SYNCED. Нерешённый продуктовый смысл подтверждения остаётся рядом с [BACKUP-NEW](04-backup-and-sync.md#backup-new).
+
+<a id="camera-check"></a>
+
+## CameraCheck
+
+Текущая или последняя ручная сверка Camera с Server ([BACKUP-CAMERA-CHECK](04-backup-and-sync.md#backup-camera-check)); одна запись, история проверок не хранится. Пока запись не в FINISHED, новые Camera upload приостановлены.
+
+**Компонентное представление:** Android — CameraCheck, таблица Room `camera_check`; на Server не хранится.
+
+| Поле | Системный тип | Значение |
+| --- | --- | --- |
+| `runId` | String | Идентификатор запуска; записи стадий применяются только к тому же запуску |
+| `state` | CameraCheckState | RUNNING, ERROR, AWAITING_DECISION, FINISHED |
+| `stage` | CameraCheckStage | SCAN, HASH, SERVER, DONE — стадия, с которой проверка продолжится |
+| `error` | CameraCheckError? | Причина ERROR: NO_MEDIA_PERMISSION, SCAN_INCOMPLETE, SCAN_FAILED, NOT_SIGNED_IN, NO_SERVER_ADDRESS, SERVER_UNAVAILABLE, SERVER_ERROR, AUTH, BAD_RESPONSE, DESTINATION_CHANGED |
+| `serverUrl` | String | Адрес Server на момент запуска (из сохранённых IP/port) |
+| `accountId` | String | Subject AccessToken на момент запуска |
+| `cameraFolderId` | FolderId? | CAMERA, для которой получены ответы; задаётся первой серверной партией |
+| `startedAt` | DateTime | Время запуска по часам устройства |
+| `deferred` | Boolean | Пользователь выбрал «Позже»: результат свёрнут, пауза сохраняется |
+| `finishedAt` | DateTime? | Время завершения ручного режима |
+| `checked`, `confirmed`, `missing`, `unverifiable` | Integer | Итог серверной стадии: проверено, найдено, не найдено, не удалось проверить |
+| `queuedForUpload` | Integer? | Сколько отсутствующих файлов возвращено в обычную синхронизацию подтверждением; null — подтверждения не было |
+
+Назначение проверки — serverUrl + accountId + cameraFolderId. Ответы для другого назначения не применяются; модели нескольких аккаунтов нет.
+
+<a id="camera-check-item"></a>
+
+## CameraCheckItem
+
+Строка набора текущей проверки: какая версия LocalMedia и по какому checksum сверяется.
+
+**Компонентное представление:** Android — CameraCheckItem, таблица Room `camera_check_items`.
+
+| Поле | Системный тип | Значение |
+| --- | --- | --- |
+| `mediaStoreId` | MediaId | LocalMedia набора |
+| `size`, `lastModified` | Integer, DateTime | Версия файла, к которой относится checksum и результат |
+| `checksum` | Checksum? | Из LocalMedia той же версии или вычисленный сверкой для FAILED без checksum; null — ещё не получен |
+| `result` | EXISTS / MISSING / UNVERIFIABLE? | Достоверный итог строки; null — итога ещё нет |
+
+Набор создаётся из всех LocalMedia, кроме LOCAL_DELETED, после полного scan и удаляется отменой, отказом, подтверждением или завершением без отсутствующих файлов. Счётчики проверки вычисляются по набору, поэтому повтор партии их не искажает.
 
 <a id="failure-reason"></a>
 
@@ -842,6 +886,7 @@ WorkInfo относится к Android WorkManager, а не LocalMedia. Знач
 | Разрешения на Files и Settings | Boolean, полный/частичный/нет доступ | Фактическое состояние Android, перечитывается при открытии экрана и возврате в приложение; не сохраняется |
 | Список Files | `List<LocalMedia>` | Все локальные строки |
 | Состояние backup на Files | [BackupState](01-system-model.md#backup-state) | Фаза, причины, счётчики и время; разрешение на фото экран передаёт при открытии и каждом возврате |
+| Проверка копий на Files | [CameraCheck](01-system-model.md#camera-check) и счётчики набора | Читается из Room при каждом изменении; закрытие экрана проверку не останавливает |
 | Сообщение операции | String? | Результат явного действия/ошибки для UI |
 
 Устойчивой истории ошибок, byte progress и UI управления retry нет. Поведение — [FILES-LOCAL](05-file-library.md#files-local).
