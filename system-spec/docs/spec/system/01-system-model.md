@@ -217,6 +217,7 @@ Checksum, проверка открытия перед upload и сама отп
 | `failureReason` | FailureReason? | Классификация последней сохраняемой ошибки файла |
 | `retryCount` | Integer | Число накопленных markFailed, исходно 0; не число HTTP/worker попыток. Обнуляется успешным hash/upload, изменением содержимого и ручным повтором FAILED ([BACKUP-RETRY](04-backup-and-sync.md#backup-retry)) |
 | `lastFailureAt` | DateTime? | Время последнего markFailed по часам устройства; определяет cooldown |
+| `uploadMismatchCount` | Integer | Число подтверждённых несовпадений checksum ответа upload с локальным, исходно 0. Успешный hash его не обнуляет; обнуляют SYNCED, новая версия, обнаруженная scan, и ручной повтор FAILED ([BACKUP-UPLOAD](04-backup-and-sync.md#backup-upload)) |
 
 ### Связи и границы
 
@@ -383,9 +384,9 @@ HASHING/UPLOADING могут сохраняться без работающей 
 
 ### Значение SYNCED
 
-SYNCED — сохранённый вывод Android после logical existing либо upload 2xx с положительным FileId. Existing меняет только status: serverFileId остаётся прежним, в обычном новом пути — null. Upload при обычном завершении записывает ID.
+SYNCED — сохранённый вывод Android после logical existing либо upload 2xx с положительным FileId и checksum ответа, равным local checksum. Existing меняет только status: serverFileId остаётся прежним, в обычном новом пути — null. Upload при обычном завершении записывает ID.
 
-Состояние не гарантирует читаемость и неизменность физических байтов Server, равенство local checksum отправленному содержимому, актуальность remote ID/папки, наличие оригинала сейчас или backup в текущем account/host. Обычный SYNCED повторно с Server не сверяется; это делает только ручная сверка ([BACKUP-CAMERA-CHECK](04-backup-and-sync.md#backup-camera-check)), и до подтверждения пользователя SYNCED не понижает. Успешный прогон Worker не означает, что все строки SYNCED. Нерешённый продуктовый смысл подтверждения остаётся рядом с [BACKUP-NEW](04-backup-and-sync.md#backup-new).
+После upload local checksum равна SHA-256, которую Server вычислил по принятым байтам ([BACKUP-UPLOAD](04-backup-and-sync.md#backup-upload)). Состояние не гарантирует читаемость и неизменность физических байтов Server, равенство local checksum текущему содержимому файла (изменение без смены size/lastModified не обнаруживается), актуальность remote ID/папки, наличие оригинала сейчас или backup в текущем account/host. Обычный SYNCED повторно с Server не сверяется; это делает только ручная сверка ([BACKUP-CAMERA-CHECK](04-backup-and-sync.md#backup-camera-check)), и до подтверждения пользователя SYNCED не понижает. Успешный прогон Worker не означает, что все строки SYNCED. Нерешённый продуктовый смысл подтверждения остаётся рядом с [BACKUP-NEW](04-backup-and-sync.md#backup-new).
 
 <a id="camera-check"></a>
 
@@ -442,9 +443,10 @@ SYNCED — сохранённый вывод Android после logical existing
 | `PERMISSION` | Отказ доступа при hashing или проверке открытия |
 | `NOT_IMAGE` | Локальный MIME не начинается с image/ перед upload |
 | `HTTP_400`, `HTTP_409`, `HTTP_413` | Соответствующий окончательный HTTP-ответ upload |
+| `CHANGED_DURING_UPLOAD` | Checksum ответа upload снова не совпал с local checksum после трёх автоматических восстановлений |
 | `UNKNOWN` | Прочая ошибка отдельного файла при hashing |
 
-Автоматически восстанавливается только CHECKSUM_IO при retryCount < 3 и достаточном cooldown. Исторический FAILED может не иметь причины. Временная ошибка upload не записывает FailureReason и не увеличивает retryCount; условия и сброс полей — [BACKUP-RETRY](04-backup-and-sync.md#backup-retry).
+Автоматически восстанавливается только CHECKSUM_IO при retryCount < 3 и достаточном cooldown; CHANGED_DURING_UPLOAD ждёт ручного повтора или новой версии файла. Исторический FAILED может не иметь причины. Временная ошибка upload не записывает FailureReason и не увеличивает retryCount; условия и сброс полей — [BACKUP-RETRY](04-backup-and-sync.md#backup-retry).
 
 <a id="folder"></a>
 
