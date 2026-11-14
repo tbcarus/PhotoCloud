@@ -15,7 +15,7 @@
 | `DateTime` | Дата и время; Server передаёт локальное время без offset, Android хранит время media/ошибок в epoch milliseconds |
 | `Instant` | Момент времени, независимый от часового пояса; Server хранит его со смещением и сравнивает как точку на шкале времени |
 | `UserId`, `FolderId`, `FileId`, `StoredObjectId`, `MetadataId`, `SessionId`, `EmailRequestId`, `ShareId`, `NotificationId` | Идентификаторы записей на конкретном Server; одинаковые числа на разных Server не связывают объекты |
-| `MediaId` | Положительный MediaStore ID в локальном индексе установки; отдельного volume/device namespace нет |
+| `MediaId` | Положительный MediaStore ID внутри коллекции Images или Video; одинаковые числа разных коллекций не обозначают один файл |
 | `Checksum` | SHA-256 содержимого конкретного чтения: 64 шестнадцатеричных символа в нижнем регистре |
 | `UUID` | UUID клиента (Server принимает его без изменения) либо серверный идентификатор UploadSession |
 | `List<T>`, `Set<T>`, `Map<K,V>` | Список, множество и отображение значений |
@@ -166,19 +166,20 @@ AccessToken предъявляется от имени User в Bearer-запро
 
 ## DeviceMedia
 
-Изображение, видимое Android через MediaStore, и его читаемый поток. Это объект устройства, не запись очереди и не удалённый файл.
+Изображение или видео, видимое Android через MediaStore, и его читаемый поток. Это объект устройства, не запись очереди и не удалённый файл.
 
-**Компонентное представление:** Android читает MediaStore Images; нормализованный снимок MediaStoreImage используется одним scan. Снимок полный, если запрос выполнен, прочитаны все его строки и основное хранилище подключено. Server объект устройства не хранит.
+**Компонентное представление:** Android независимо читает MediaStore Images (`DCIM/`, `Pictures/`) и Video (`DCIM/Camera/`). Для каждой коллекции снимок полный, если выдано полное разрешение на неё, запрос выполнен, прочитаны все строки и основное хранилище подключено. Server объект устройства не хранит.
 
-### Данные доступного изображения
+### Данные доступного медиафайла
 
 | Поле | Системный тип | Значение |
 | --- | --- | --- |
-| `mediaStoreId` | MediaId | MediaStore _ID, по которому строится локальная identity |
-| `uri` | String | Content URI Images с ID; адрес открытия потока |
-| `displayName` | String | Имя из DISPLAY_NAME; при отсутствии используется image_ID |
+| `mediaStoreId` | MediaId | MediaStore _ID внутри коллекции; без коллекции не уникален |
+| `collection` | IMAGE / VIDEO | Коллекция MediaStore |
+| `uri` | String | Content URI с коллекцией и ID; локальный ключ и адрес открытия потока |
+| `displayName` | String | Имя из DISPLAY_NAME; при отсутствии используется image_ID или video_ID |
 | `relativePath` | String? | RELATIVE_PATH; пустое значение становится null, это не Server Folder |
-| `mimeType` | String | MIME_TYPE; при отсутствии image/* |
+| `mimeType` | String | MIME_TYPE; при отсутствии image/* или video/* по коллекции |
 | `size` | Integer | Заявленный SIZE в байтах; неизвестный становится 0 |
 | `createdAt` | DateTime | Нормализованное время: положительное DATE_TAKEN, затем DATE_MODIFIED, DATE_ADDED, иначе now |
 | `lastModified` | DateTime | Положительное DATE_MODIFIED, иначе createdAt |
@@ -187,15 +188,15 @@ DATE_TAKEN поступает в миллисекундах, DATE_MODIFIED/DATE_
 
 ### Связи и байты устройства
 
-DeviceMedia индексируется в LocalMedia по mediaStoreId. ОС, provider и разрешения определяют видимость и доступный поток. URI не закрепляет неизменяемую версию bytes: checksum и upload открывают его независимо.
+DeviceMedia индексируется в LocalMedia по URI. ОС, provider и разрешения определяют видимость и доступный поток. URI не закрепляет неизменяемую версию bytes: checksum и upload открывают его независимо.
 
-Checksum, проверка открытия перед upload и сама отправка выбирают поток по одному правилу. При выданном необязательном ACCESS_MEDIA_LOCATION Android запрашивает оригинал (MediaStore.setRequireOriginal, файловый дескриптор) — исходные байты вместе с EXIF/GPS. Без этого разрешения, а также если Android отказал в оригинале (разрешение отозвано после проверки), читается обычный поток MediaStore: на Android 10+ для чужих файлов, например снимков камеры, он может быть копией той же длины с затёртыми геоданными. Отказ в оригинале не делает файл ошибочным; отсутствие файла, ошибка чтения и отказ в доступе к самому изображению при обычном открытии не скрываются. Отдельная приватная копия потока и модель selected-photo отсутствуют.
+Для фото checksum, проверка открытия перед upload и сама отправка выбирают поток по одному правилу. При выданном необязательном ACCESS_MEDIA_LOCATION Android запрашивает оригинал (MediaStore.setRequireOriginal, файловый дескриптор) — исходные байты вместе с EXIF/GPS. Без этого разрешения, а также если Android отказал в оригинале, читается обычный поток MediaStore. Для видео всегда читается обычный поток. Отсутствие файла, ошибка чтения и отказ в доступе к нему не скрываются.
 
 <a id="local-media"></a>
 
 ## LocalMedia
 
-Сохранённая Android запись изображения и его обработки.
+Сохранённая Android запись фото или видео и его обработки.
 
 **Компонентное представление:** Android — MediaFile; Server не хранит эту очередь.
 
@@ -203,14 +204,15 @@ Checksum, проверка открытия перед upload и сама отп
 
 | Поле | Системный тип | Значение |
 | --- | --- | --- |
-| `mediaStoreId` | MediaId | Первичный локальный ID из DeviceMedia |
+| `mediaStoreId` | MediaId | ID из DeviceMedia внутри коллекции; участвует в FIFO |
 | `serverFileId` | FileId? | Положительный RemoteFile.id успешного upload; existing не получает и не меняет ID |
-| `uri` | String | Текущий адрес потока из DeviceMedia |
+| `uri` | String | Ключ строки Room и текущий адрес потока из DeviceMedia |
+| `collection` | IMAGE / VIDEO | Коллекция MediaStore для разрешений и чтения |
 | `displayName` | String | Локальное имя для списка и multipart filename |
 | `relativePath` | String? | Локальный путь из DeviceMedia |
-| `mimeType` | String | Локальный MIME для проверки image/ и Content-Type части |
+| `mimeType` | String | Локальный MIME для проверки image/ или video/ и Content-Type части |
 | `size` | Integer | Заявленный локальный размер; участвует в обнаружении изменения и длине upload |
-| `createdAt` | DateTime | Локальное время изображения из DeviceMedia; определяет порядок локального списка (по убыванию). Рабочие партии hash, pre-check и upload выбираются по mediaStoreId по возрастанию |
+| `createdAt` | DateTime | Локальное время из DeviceMedia; определяет порядок локального списка (по убыванию). Рабочие партии выбираются по (mediaStoreId, uri) по возрастанию |
 | `lastModified` | DateTime | Локальное время изменения; участвует в обнаружении изменения |
 | `checksum` | Checksum? | SHA-256 потока, прочитанного Android по правилу [DeviceMedia](01-system-model.md#device-media): оригинала или доступной версии; после discovery/изменения отсутствует |
 | `status` | SyncState | Сохранённое состояние обработки; исходно PENDING |
@@ -221,9 +223,9 @@ Checksum, проверка открытия перед upload и сама отп
 
 ### Связи и границы
 
-LocalMedia ссылается на DeviceMedia через mediaStoreId/uri. serverFileId может связывать её с RemoteFile, но не сопровождается account/server/folder namespace. Два local ID с одинаковыми bytes остаются разными записями. В LocalMedia нет folderId, server/account identity, remote filename/MIME/size/capturedAt/uploadedAt/metadata, upload session или byte progress.
+LocalMedia ссылается на DeviceMedia через URI, включающий коллекцию и ID. serverFileId может связывать её с RemoteFile, но не сопровождается account/server/folder namespace. Два URI с одинаковыми bytes остаются разными записями. В LocalMedia нет folderId, server/account identity, remote filename/MIME/size/capturedAt/uploadedAt/metadata, upload session или byte progress.
 
-Изменение size/lastModified сбрасывает checksum, serverFileId и сведения об ошибке. Отсутствие ID в полном снимке при полном доступе к изображениям удаляет запись. Переходы и исключения — [BACKUP-DISCOVER](04-backup-and-sync.md#backup-discover), [BACKUP-CHANGE](04-backup-and-sync.md#backup-change), [BACKUP-RETRY](04-backup-and-sync.md#backup-retry).
+Изменение size/lastModified сбрасывает checksum, serverFileId и сведения об ошибке. Отсутствие URI в полном снимке его коллекции при полном доступе к ней удаляет запись; неполный снимок и отсутствие разрешения её не удаляют. Переходы и исключения — [BACKUP-DISCOVER](04-backup-and-sync.md#backup-discover), [BACKUP-CHANGE](04-backup-and-sync.md#backup-change), [BACKUP-RETRY](04-backup-and-sync.md#backup-retry).
 
 <a id="backup-source"></a>
 
@@ -423,7 +425,8 @@ SYNCED — сохранённый вывод Android после logical existing
 
 | Поле | Системный тип | Значение |
 | --- | --- | --- |
-| `mediaStoreId` | MediaId | LocalMedia набора |
+| `uri` | String | Ключ LocalMedia набора |
+| `mediaStoreId` | MediaId | Числовой ID для устойчивого порядка обхода |
 | `size`, `lastModified` | Integer, DateTime | Версия файла, к которой относится checksum и результат |
 | `checksum` | Checksum? | Из LocalMedia той же версии или вычисленный сверкой для FAILED без checksum; null — ещё не получен |
 | `result` | EXISTS / MISSING / UNVERIFIABLE? | Достоверный итог строки; null — итога ещё нет |
