@@ -2,7 +2,7 @@
 
 Это каноническое определение системных сущностей, полей, типов и связей. Сценарии описывают операции над этой моделью. Имена RemoteFile, LocalMedia, DeviceMedia, PhysicalBytes и TokenPair обозначают системные представления существующих объектов, а не новые классы или хранилища.
 
-Модель описывает текущий As-Is. В ней нет сущностей ACL, Device, Album, UserSettings или SyncSession. UploadSession реализована только на Server; Android пока её не использует.
+Модель описывает текущий As-Is. В ней нет сущностей ACL, Device, Album, UserSettings или SyncSession. UploadSession реализована на Server и для Camera на Android; SAF и ручная Library пока её не используют.
 
 <a id="system-types"></a>
 
@@ -897,7 +897,7 @@ WorkInfo относится к Android WorkManager, а не LocalMedia. Знач
 
 ## UploadSession
 
-**Компонентное представление:** Server — самостоятельная запись `upload_sessions` и служебные файлы сборки/блока. **Availability: SERVER_ONLY.** Android пока не хранит и не использует эту сущность.
+**Компонентное представление:** Server — самостоятельная запись `upload_sessions` и служебные файлы сборки/блока. Android хранит отдельную запись `upload_sessions` в Room для Camera. **Availability: END_TO_END для Camera; SERVER_ONLY для SAF и ручной Library.**
 
 | Поле | Системный тип | Значение |
 | --- | --- | --- |
@@ -910,6 +910,8 @@ WorkInfo относится к Android WorkManager, а не LocalMedia. Знач
 | `state` | String | UPLOADING, FINALIZING, COMPLETED, CANCELLED, FAILED, EXPIRED |
 | `createdAt`, `lastActivityAt`, `finishedAt` | Instant, Instant, Instant? | UTC, микросекунды; GET не меняет время активности |
 | `result`, `error` | RemoteFile?, String? | Сохранённая квитанция FileItemDto либо терминальная причина; квитанция не меняется при последующих операциях Library |
+
+Android хранит `clientRequestId`, серверный UUID после подтверждения, Server URL, subject аккаунта, источник Camera/MediaStore ID и URI, папку, имя, размер, lastModified, режим оригинала, checksum, подтверждённый offset и признак ожидающей отмены. Эта запись не имеет внешнего ключа к `media_files`, поэтому удаление Camera-строки не теряет сведения для серверной отмены. Offset после восстановления всегда сверяется GET с Server.
 
 Сервер также хранит внутренний путь незавершённой публикации и признак физической очистки. Они не возвращаются клиенту. Служебные байты находятся в `.upload-sessions` под storage root, не являются RemoteFile/StoredObject и недоступны Library, download и sharing. После успеха FileItem, StoredObject и результат сессии фиксируются вместе. После терминального перехода запись сохраняется 30 суток, либо дольше до успешной очистки временных байтов.
 
