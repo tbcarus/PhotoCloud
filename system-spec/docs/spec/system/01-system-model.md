@@ -2,7 +2,7 @@
 
 Это каноническое определение системных сущностей, полей, типов и связей. Сценарии описывают операции над этой моделью. Имена RemoteFile, LocalMedia, DeviceMedia, PhysicalBytes и TokenPair обозначают системные представления существующих объектов, а не новые классы или хранилища.
 
-Модель описывает текущий As-Is. В ней нет сущностей ACL, Device, Album, UserSettings или SyncSession. UploadSession реализована на Server и для автоматических Camera и SAF на Android; ручная Library пока её не использует.
+Модель описывает текущий As-Is. В ней нет сущностей ACL, Device, Album, UserSettings или SyncSession. UploadSession реализована на Server и для автоматических Camera, SAF и ручных файлов Library на Android.
 
 <a id="system-types"></a>
 
@@ -900,7 +900,7 @@ WorkInfo относится к Android WorkManager, а не LocalMedia. Знач
 
 ## UploadSession
 
-**Компонентное представление:** Server — самостоятельная запись `upload_sessions` и служебные файлы сборки/блока. Android хранит отдельную запись `upload_sessions` в Room для Camera и SAF. **Availability: END_TO_END для Camera и SAF; SERVER_ONLY для ручной Library.**
+**Компонентное представление:** Server — самостоятельная запись `upload_sessions` и служебные файлы сборки/блока. Android хранит отдельную запись `upload_sessions` в Room для Camera, SAF и крупных ручных файлов Library. **Availability: END_TO_END.**
 
 | Поле | Системный тип | Значение |
 | --- | --- | --- |
@@ -914,7 +914,13 @@ WorkInfo относится к Android WorkManager, а не LocalMedia. Знач
 | `createdAt`, `lastActivityAt`, `finishedAt` | Instant, Instant, Instant? | UTC, микросекунды; GET не меняет время активности |
 | `result`, `error` | RemoteFile?, String? | Сохранённая квитанция FileItemDto либо терминальная причина; квитанция не меняется при последующих операциях Library |
 
-Android хранит `clientRequestId`, серверный UUID после подтверждения, Server URL, subject аккаунта, тип источника Camera/SAF, локальный ID файла или Camera URI, URI содержимого, папку, имя, размер, lastModified, режим оригинала, checksum, подтверждённый offset и признак ожидающей отмены. У SAF также хранится `backupSource` (UUID источника), передаваемый при создании серверной сессии. Запись не имеет внешнего ключа к строке исходного файла: её удаление не теряет сведения для серверной отмены. Offset после восстановления всегда сверяется GET с Server.
+Android хранит `clientRequestId`, серверный UUID после подтверждения, Server URL, subject аккаунта, тип источника Camera/SAF/MANUAL, локальный ID файла или Camera URI, URI содержимого, папку, имя, размер, lastModified, режим оригинала, checksum, подтверждённый offset и признак ожидающей отмены. У SAF также хранится `backupSource` (UUID источника), передаваемый при создании серверной сессии. Для MANUAL `sourceId` — ID задания отдельной Room-очереди; `backupSource` не передаётся. Запись не имеет внешнего ключа к строке исходного файла: её удаление не теряет сведения для серверной отмены. Offset после восстановления всегда сверяется GET с Server.
+
+<a id="manual-upload-job"></a>
+
+## ManualUploadJob
+
+**Компонентное представление:** Android — строка `manual_upload_jobs` в Room; Server видит файл только после подтверждённого завершения upload. Каждое выбранное через OpenDocument содержимое становится отдельным заданием FIFO для пары Server + account. Поля: локальный UUID задания, Server URL, subject, persistable URI, исходное имя/MIME/размер/lastModified, folderId и признак ROOT, checksum после потокового чтения, UUID сессии крупного файла, подтверждённый offset, время добавления, состояние и причина ошибки. Статусы: QUEUED, VERIFYING, RUNNING, UNCERTAIN (ответ multipart неизвестен), CANCEL_PENDING, RETRY_PENDING, COMPLETED, FAILED, CANCELLED. Повтор FAILED отменяет прежнюю сессию перед новым checksum и UUID. У малого файла серверной UploadSession нет; checksum сам по себе не удостоверяет публикацию. Строка сохраняется после перезапуска и видна в Library текущего аккаунта.
 
 Сервер также хранит внутренний путь незавершённой публикации и признак физической очистки. Они не возвращаются клиенту. Служебные байты находятся в `.upload-sessions` под storage root, не являются RemoteFile/StoredObject и недоступны Library, download и sharing. После успеха FileItem, StoredObject и результат сессии фиксируются вместе. После терминального перехода запись сохраняется 30 суток, либо дольше до успешной очистки временных байтов.
 
