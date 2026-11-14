@@ -2,7 +2,7 @@
 
 Это каноническое определение системных сущностей, полей, типов и связей. Сценарии описывают операции над этой моделью. Имена RemoteFile, LocalMedia, DeviceMedia, PhysicalBytes и TokenPair обозначают системные представления существующих объектов, а не новые классы или хранилища.
 
-Модель описывает текущий As-Is. В ней нет сущностей ACL, Device, Album, UserSettings, UploadSession или SyncSession: таких прикладных моделей сейчас нет.
+Модель описывает текущий As-Is. В ней нет сущностей ACL, Device, Album, UserSettings или SyncSession. UploadSession реализована только на Server; Android пока её не использует.
 
 <a id="system-types"></a>
 
@@ -17,7 +17,7 @@
 | `UserId`, `FolderId`, `FileId`, `StoredObjectId`, `MetadataId`, `SessionId`, `EmailRequestId`, `ShareId`, `NotificationId` | Идентификаторы записей на конкретном Server; одинаковые числа на разных Server не связывают объекты |
 | `MediaId` | Положительный MediaStore ID в локальном индексе установки; отдельного volume/device namespace нет |
 | `Checksum` | SHA-256 содержимого конкретного чтения: 64 шестнадцатеричных символа в нижнем регистре |
-| `UUID` | Идентификатор, создаваемый клиентом; Server принимает любой корректный UUID и сохраняет его без изменения |
+| `UUID` | UUID клиента (Server принимает его без изменения) либо серверный идентификатор UploadSession |
 | `List<T>`, `Set<T>`, `Map<K,V>` | Список, множество и отображение значений |
 | `T?` | Значение может отсутствовать; это не отдельное состояние обработки |
 
@@ -892,6 +892,28 @@ WorkInfo относится к Android WorkManager, а не LocalMedia. Знач
 | Сообщение операции | String? | Результат явного действия/ошибки для UI |
 
 Устойчивой истории ошибок, byte progress и UI управления retry нет. Поведение — [FILES-LOCAL](05-file-library.md#files-local).
+
+<a id="upload-session"></a>
+
+## UploadSession
+
+**Компонентное представление:** Server — самостоятельная запись `upload_sessions` и служебные файлы сборки/блока. **Availability: SERVER_ONLY.** Android пока не хранит и не использует эту сущность.
+
+| Поле | Системный тип | Значение |
+| --- | --- | --- |
+| `id` | UUID | Устойчивый UUID, созданный Server |
+| `userId`, `clientRequestId` | UserId, UUID | Владелец и ключ идемпотентности; пара уникальна |
+| `folderId`, `backupSource` | FolderId, UUID? | Исходное назначение; удаление папки не удаляет сессию, публикация повторно проверяет назначение |
+| `originalFilename` | String | Запрошенное имя; действуют правила Camera/Library |
+| `size`, `checksum` | Integer, Checksum | Ожидаемые размер в байтах и SHA-256 полного файла |
+| `confirmedOffset` | Integer | Подтверждённые байты; место начала следующего блока |
+| `state` | String | UPLOADING, FINALIZING, COMPLETED, CANCELLED, FAILED, EXPIRED |
+| `createdAt`, `lastActivityAt`, `finishedAt` | Instant, Instant, Instant? | UTC, микросекунды; GET не меняет время активности |
+| `result`, `error` | RemoteFile?, String? | Сохранённая квитанция FileItemDto либо терминальная причина; квитанция не меняется при последующих операциях Library |
+
+Сервер также хранит внутренний путь незавершённой публикации и признак физической очистки. Они не возвращаются клиенту. Служебные байты находятся в `.upload-sessions` под storage root, не являются RemoteFile/StoredObject и недоступны Library, download и sharing. После успеха FileItem, StoredObject и результат сессии фиксируются вместе. После терминального перехода запись сохраняется 30 суток, либо дольше до успешной очистки временных байтов.
+
+Протокол — [BACKUP-RESUMABLE](04-backup-and-sync.md#backup-resumable), публикация и восстановление — [SYSTEM-UPLOAD-RECOVERY](07-system-rules-and-recovery.md#system-upload-recovery).
 
 <a id="error-response"></a>
 
