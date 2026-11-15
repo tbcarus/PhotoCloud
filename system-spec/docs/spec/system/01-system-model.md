@@ -530,7 +530,7 @@ CAMERA — системная конечная папка. ROOT, CAMERA и AUTO_
 | `storedObject` | StoredObject | Сведения о физическом объекте |
 | `checksum` | Checksum | Сохранённая копия StoredObject.checksum |
 | `originalName` | String | Логическое имя; API возвращает его как originalFilename |
-| `capturedAt` | DateTime | Локальные календарные дата и время съёмки из EXIF DateTimeOriginal, иначе DateTimeDigitized, без пересчёта часовых поясов; без пригодной EXIF-даты — uploadedAt ([BACKUP-METADATA](04-backup-and-sync.md#backup-metadata)) |
+| `capturedAt` | DateTime | Для фото — локальное календарное время EXIF DateTimeOriginal, иначе DateTimeDigitized, без пересчёта пояса. Для видео с переданным моментом — UTC-календарное время этого момента. Без достоверной даты — uploadedAt как fallback сортировки, а не подтверждённая дата съёмки ([BACKUP-METADATA](04-backup-and-sync.md#backup-metadata)) |
 | `uploadedAt` | DateTime | Время создания удалённой записи; при copy новое |
 | `deletedAt` | DateTime? | Поле существует, но текущий API его не заполняет и удаляет запись физически |
 | `metadata` | FileMetadata? | Доступные сведения об изображении |
