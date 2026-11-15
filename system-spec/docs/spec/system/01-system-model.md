@@ -182,9 +182,10 @@ AccessToken предъявляется от имени User в Bearer-запро
 | `mimeType` | String | MIME_TYPE; при отсутствии image/* или video/* по коллекции |
 | `size` | Integer | Заявленный SIZE в байтах; неизвестный становится 0 |
 | `createdAt` | DateTime | Нормализованное время: положительное DATE_TAKEN, затем DATE_MODIFIED, DATE_ADDED, иначе now |
+| `dateTaken` | DateTime? | Исходный положительный DATE_TAKEN видео в миллисекундах; для фото отдельно не сохраняется |
 | `lastModified` | DateTime | Положительное DATE_MODIFIED, иначе createdAt |
 
-DATE_TAKEN поступает в миллисекундах, DATE_MODIFIED/DATE_ADDED — в секундах и преобразуются в миллисекунды. Это исходные значения ОС для вычисления двух дат, а не дополнительные поля LocalMedia. Положительность size сканер не проверяет.
+DATE_TAKEN поступает в миллисекундах, DATE_MODIFIED/DATE_ADDED — в секундах и преобразуются в миллисекунды. Для видео DATE_TAKEN также сохраняется отдельно в LocalMedia; запасные даты для него не подставляются. Положительность size сканер не проверяет.
 
 ### Связи и байты устройства
 
@@ -213,6 +214,7 @@ DeviceMedia индексируется в LocalMedia по URI. ОС, provider и
 | `mimeType` | String | Локальный MIME для проверки image/ или video/ и Content-Type части |
 | `size` | Integer | Заявленный локальный размер; участвует в обнаружении изменения и длине upload |
 | `createdAt` | DateTime | Локальное время из DeviceMedia; определяет порядок локального списка (по убыванию). Рабочие партии выбираются по (mediaStoreId, uri) по возрастанию |
+| `dateTaken` | DateTime? | Исходный положительный DATE_TAKEN видео в миллисекундах, отдельно от createdAt с fallback; фото оставляют null |
 | `lastModified` | DateTime | Локальное время изменения; участвует в обнаружении изменения |
 | `checksum` | Checksum? | SHA-256 потока, прочитанного Android по правилу [DeviceMedia](01-system-model.md#device-media): оригинала или доступной версии; после discovery/изменения отсутствует |
 | `status` | SyncState | Сохранённое состояние обработки; исходно PENDING |
